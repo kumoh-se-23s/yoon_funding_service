@@ -11,7 +11,8 @@ public class RewardDAO {
         String sql = "INSERT INTO reward(project_id, title, content, img_blob, stock_quantity, price) "
                 + "VALUES(?, ?, ?, ?, ?, ?)";
 
-        try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (PreparedStatement pstmt =
+                     conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             pstmt.setLong(1, reward.getProjectId());
             pstmt.setString(2, reward.getTitle());
             pstmt.setString(3, reward.getContent());
@@ -23,22 +24,20 @@ public class RewardDAO {
             return ProjectDAO.generatedKey(pstmt);
         }
     }
-}
 
-// 프로젝트에 등록된 리워드 개수 조회
-// 관리자 승인 전 리워드 존재 여부 확인에 사용
-public int countByProjectId(Connection conn, Long projectId)
-        throws SQLException {
+    // 프로젝트에 등록된 리워드 개수 조회
+    // 관리자 승인 전 리워드 존재 여부 확인에 사용
+    public int countByProjectId(Connection conn, Long projectId)
+            throws SQLException {
+        String sql = "SELECT COUNT(*) FROM reward WHERE project_id = ?";
 
-    String sql = "SELECT COUNT(*) FROM reward WHERE project_id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setLong(1, projectId);
 
-    try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-        pstmt.setLong(1, projectId);
-
-        try (ResultSet rs = pstmt.executeQuery()) {
-            rs.next();
-            return rs.getInt(1);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                rs.next();
+                return rs.getInt(1);
+            }
         }
     }
 }

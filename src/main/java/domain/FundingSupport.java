@@ -1,6 +1,6 @@
 package domain;
 
-import project.persistence.dto.*;
+import persistence.dto.*;
 
 import java.time.LocalDateTime;
 
