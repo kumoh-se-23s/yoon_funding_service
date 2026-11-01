@@ -29,7 +29,7 @@ public class FundingSupportDAO {
         }
     }
 
-    public int P(Connection conn, FundingSupportDTO fsDTO) throws RuntimeException{
+    public int getRemainStock(Connection conn, FundingSupportDTO fsDTO) throws RuntimeException{
         String sql = """
             SELECT r.stock_quantity - COUNT(fs.user_id)
             FROM reward r
