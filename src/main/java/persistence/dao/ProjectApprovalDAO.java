@@ -59,4 +59,20 @@ public ProjectApprovalDTO findLatestByProject(
             return approval;
         }
     }
+    // 승인 신청(0) 상태의 해당 심사 이력만 승인(1) 상태로 갱신
+public int approvePending(Connection conn, Long approvalId)
+        throws SQLException {
+
+    String sql = "UPDATE project_approval "
+            + "SET project_status = 1, "
+            + "reject_reason = NULL, "
+            + "eval_at = NOW() "
+            + "WHERE approval_id = ? AND project_status = 0";
+
+    try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        pstmt.setLong(1, approvalId);
+        return pstmt.executeUpdate();
+    }
 }
+}
+
