@@ -24,3 +24,21 @@ public class RewardDAO {
         }
     }
 }
+
+// 프로젝트에 등록된 리워드 개수 조회
+// 관리자 승인 전 리워드 존재 여부 확인에 사용
+public int countByProjectId(Connection conn, Long projectId)
+        throws SQLException {
+
+    String sql = "SELECT COUNT(*) FROM reward WHERE project_id = ?";
+
+    try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+        pstmt.setLong(1, projectId);
+
+        try (ResultSet rs = pstmt.executeQuery()) {
+            rs.next();
+            return rs.getInt(1);
+        }
+    }
+}
