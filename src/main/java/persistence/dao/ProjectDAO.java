@@ -53,8 +53,8 @@ public class ProjectDAO {
                         payment_due_at, delivery_start_at
                 FROM project
                 WHERE project_status = 1
-                ORDER BY project_id
-                """;
+                ORDER BY project_id DESC
+                """; // project_id는 Auto Increment 속성이므로, 등록한 최신순으로 보여줌. DESC
         List<ProjectDTO> projects = new ArrayList<>();
 
         try(PreparedStatement pstmt = conn.prepareStatement(sql);
