@@ -20,8 +20,8 @@ public class FundingSupportService {
             try {
                 conn.setAutoCommit(false);
 
-                boardDAO.insert(conn, board);
-                memberDAO.increasePoint(conn, board.getWriter());
+                //boardDAO.insert(conn, board);
+                //memberDAO.increasePoint(conn, board.getWriter());
 
                 conn.commit();
 
