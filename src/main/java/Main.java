@@ -7,6 +7,10 @@ import view.UserView;
 
 import javax.sql.DataSource;
 
+import service.ProjectService;
+import view.ProjectView;
+import java.sql.SQLException;
+
 public class Main {
     // ---------------- 객체 준비 ----------------
     // 싱글톤 커넥션 풀 : 프로그램 전체에서 이 하나만 사용
@@ -32,6 +36,10 @@ public class Main {
     // 현재 로그인한 회원 (로그인 세션 역할). 로그아웃 상태면 null
     private static UserDTO loginUser = null;
 
+    // 프로젝트 조회 서비스, 화면 객체
+    private static final ProjectService projectService = new ProjectService(dataSource, projectDAO);
+    private static final ProjectView projectView = new ProjectView();
+
     public static void main(String[] args) {
         initDB();                       //  검사에 필요한 사전 데이터를 insert하는 메소드 (실행 후 주석 처리)
         // 검사할 항목 하나만 주석 해제하여 실행
@@ -41,7 +49,7 @@ public class Main {
         // test03RegisterReward();         // MAKER     - 리워드 등록 및 프로젝트 신청
         // test04ApproveProject();         // ADMIN     - 프로젝트 등록 승인
         // test05UpdateProfile();          // SUPPORTER - 개인정보 수정
-        // test06ViewProjects();           // SUPPORTER - 프로젝트 보기
+        test06ViewProjects();           // SUPPORTER - 프로젝트 보기
         // test07FilterProjects();         // SUPPORTER - 프로젝트 필터링
         // test08ApplyReward();            // SUPPORTER - 리워드 신청
         // test09RegisterReview();         // SUPPORTER - 리뷰 및 별점 등록
@@ -111,5 +119,16 @@ public class Main {
         }
 
         logout();
+    }
+
+    private static void test06ViewProjects() {
+        try {
+            projectView.printProjects(
+                    projectService.findAll(),
+                    projectService.findSoldOutProjectIds()
+            );
+        } catch (SQLException e) {
+            System.out.println("프로젝트 조회 실패: " + e.getMessage());
+        }
     }
 }

@@ -1,5 +1,9 @@
 package persistence.dao;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
 import persistence.dto.ProjectDTO;
 
 import java.sql.*;
@@ -37,5 +41,78 @@ public class ProjectDAO {
         try (ResultSet rs = pstmt.getGeneratedKeys()) {
             return rs.next() ? rs.getLong(1) : null;
         }
+    }
+
+    // 승인된 프로젝트 목록 조회
+    public List<ProjectDTO> findAll(Connection conn) throws SQLException {
+        String sql = """
+                SELECT project_id, user_id, title, subtitle,
+                        introduction, item_info, goal_amount,
+                        category, project_status,
+                        funding_start_at, funding_end_at,
+                        payment_due_at, delivery_start_at
+                FROM project
+                WHERE project_status = 1
+                ORDER BY project_id
+                """;
+        List<ProjectDTO> projects = new ArrayList<>();
+
+        try(PreparedStatement pstmt = conn.prepareStatement(sql);
+            ResultSet rs = pstmt.executeQuery()){
+
+            while(rs.next()){
+                ProjectDTO project = new ProjectDTO();
+
+                project.setProjectId(rs.getLong("project_id"));
+                project.setUserId(rs.getLong("user_id"));
+                project.setTitle(rs.getString("title"));
+                project.setSubtitle(rs.getString("subtitle"));
+                project.setIntroduction(rs.getString("introduction"));
+                project.setItemInfo(rs.getString("item_info"));
+                project.setGoalAmount(rs.getLong("goal_amount"));
+                project.setCategory(rs.getInt("category"));
+                project.setProjectStatus(rs.getInt("project_status"));
+
+                project.setFundingStartAt(rs.getObject("funding_start_at", LocalDateTime.class));
+                project.setFundingEndAt(rs.getObject("funding_end_at", LocalDateTime.class));
+                project.setPaymentDueAt(rs.getObject("payment_due_at", LocalDateTime.class));
+                project.setDeliveryStartAt(rs.getObject("delivery_start_at", LocalDateTime.class));
+
+                projects.add(project);
+            }
+        }
+
+        return projects;
+    }
+
+    // 리워드가 존재하고, 모든 리워드 잔량이 0 이하인 프로젝트 번호 조회
+    public List<Long> findSoldOutProjectIds(Connection conn) throws SQLException {
+        String sql = """
+            SELECT remaining.project_id
+            FROM (
+                SELECT r.project_id,
+                       r.reward_id,
+                       r.stock_quantity - COUNT(fs.support_id) AS remaining_quantity
+                FROM reward r
+                LEFT JOIN funding_support fs
+                    ON fs.reward_id = r.reward_id
+                    AND fs.cancel_status = FALSE
+                GROUP BY r.project_id, r.reward_id, r.stock_quantity
+            ) remaining
+            GROUP BY remaining.project_id
+            HAVING MAX(remaining.remaining_quantity) <= 0
+            """;
+
+        List<Long> projectIds = new ArrayList<>();
+
+        try (PreparedStatement pstmt = conn.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+
+            while (rs.next()) {
+                projectIds.add(rs.getLong("project_id"));
+            }
+        }
+
+        return projectIds;
     }
 }
