@@ -115,4 +115,72 @@ public class ProjectDAO {
 
         return projectIds;
     }
+
+// 프로젝트 ID로 단일 프로젝트 조회
+public ProjectDTO findById(Connection conn, Long projectId)
+        throws SQLException {
+
+    return selectById(conn, projectId, false);
+}
+
+
+// 프로젝트 조회 및 행 잠금
+// 승인 처리 중 다른 트랜잭션의 동시 변경 방지
+public ProjectDTO findByIdForUpdate(Connection conn, Long projectId)
+        throws SQLException {
+
+    return selectById(conn, projectId, true);
+}
+
+
+// 일반 조회와 행 잠금 조회의 공통 처리
+private ProjectDTO selectById(
+        Connection conn, Long projectId, boolean forUpdate)
+        throws SQLException {
+
+    String sql = "SELECT * FROM project WHERE project_id = ?"
+            + (forUpdate ? " FOR UPDATE" : "");
+
+    try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+        pstmt.setLong(1, projectId);
+
+        try (ResultSet rs = pstmt.executeQuery()) {
+
+            if (!rs.next()) {
+                return null;
+            }
+
+            ProjectDTO project = new ProjectDTO();
+
+            project.setProjectId(rs.getLong("project_id"));
+            project.setUserId(rs.getLong("user_id"));
+            project.setTitle(rs.getString("title"));
+            project.setSubtitle(rs.getString("subtitle"));
+            project.setIntroduction(rs.getString("introduction"));
+            project.setItemInfo(rs.getString("item_info"));
+            project.setGoalAmount(rs.getLong("goal_amount"));
+            project.setCategory(rs.getInt("category"));
+            project.setProjectStatus(rs.getInt("project_status"));
+
+            project.setFundingStartAt(
+                rs.getObject("funding_start_at",
+                    java.time.LocalDateTime.class));
+
+            project.setFundingEndAt(
+                rs.getObject("funding_end_at",
+                    java.time.LocalDateTime.class));
+
+            project.setPaymentDueAt(
+                rs.getObject("payment_due_at",
+                    java.time.LocalDateTime.class));
+
+            project.setDeliveryStartAt(
+                rs.getObject("delivery_start_at",
+                    java.time.LocalDateTime.class));
+
+            return project;
+        }
+    }
+}
 }
