@@ -1,6 +1,6 @@
-package view;
+package project.view;
 
-import persistence.dto.UserDTO;
+import project.persistence.dto.UserDTO;
 
 import java.util.Scanner;
 

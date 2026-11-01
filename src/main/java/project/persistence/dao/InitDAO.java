@@ -1,4 +1,4 @@
-package persistence.dao;
+package project.persistence.dao;
 
 import java.sql.Connection;
 import java.sql.SQLException;

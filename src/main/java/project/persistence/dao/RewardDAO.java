@@ -1,6 +1,6 @@
-package persistence.dao;
+package project.persistence.dao;
 
-import persistence.dto.RewardDTO;
+import project.persistence.dto.RewardDTO;
 
 import java.sql.*;
 

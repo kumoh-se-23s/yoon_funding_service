@@ -1,4 +1,4 @@
-package persistence.dto;
+package yoon.persistence.dto;
 
 import lombok.*;
 

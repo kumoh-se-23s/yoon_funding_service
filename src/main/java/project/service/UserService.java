@@ -1,8 +1,8 @@
-package service;
+package project.service;
 
-import persistence.dao.UserDAO;
-import persistence.dto.UserDTO;
-import util.PasswordUtil;
+import project.persistence.dao.UserDAO;
+import project.persistence.dto.UserDTO;
+import project.util.PasswordUtil;
 
 import javax.sql.DataSource;
 import java.sql.Connection;

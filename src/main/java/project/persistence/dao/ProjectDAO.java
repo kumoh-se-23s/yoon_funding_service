@@ -1,6 +1,6 @@
-package persistence.dao;
+package project.persistence.dao;
 
-import persistence.dto.ProjectDTO;
+import project.persistence.dto.ProjectDTO;
 
 import java.sql.*;
 

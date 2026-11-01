@@ -1,4 +1,4 @@
-package persistence.dto;
+package project.persistence.dto;
 
 import lombok.*;
 

@@ -1,6 +1,6 @@
-package persistence.dao;
+package project.persistence.dao;
 
-import persistence.dto.ProjectApprovalDTO;
+import project.persistence.dto.ProjectApprovalDTO;
 
 import java.sql.*;
 
