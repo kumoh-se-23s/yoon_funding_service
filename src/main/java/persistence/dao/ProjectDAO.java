@@ -4,11 +4,55 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import lombok.RequiredArgsConstructor;
 import persistence.dto.ProjectDTO;
 
+import javax.sql.DataSource;
 import java.sql.*;
 
 public class ProjectDAO {
+
+    public ProjectDTO findById(Connection conn, Long projectId) throws SQLException {
+
+        String sql = """
+            SELECT *
+            FROM project
+            WHERE project_id = ?
+            """;
+
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, projectId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+
+                if (!rs.next()) {
+                    return null;
+                }
+
+                Timestamp fundingStartAt = rs.getTimestamp("funding_start_at");
+                Timestamp fundingEndAt = rs.getTimestamp("funding_end_at");
+                Timestamp paymentDueAt = rs.getTimestamp("payment_due_at");
+                Timestamp deliveryStartAt = rs.getTimestamp("delivery_start_at");
+
+                return ProjectDTO.builder()
+                        .projectId(rs.getLong("project_id"))
+                        .userId(rs.getLong("user_id"))
+                        .title(rs.getString("title"))
+                        .subtitle(rs.getString("subtitle"))
+                        .introduction(rs.getString("introduction"))
+                        .itemInfo(rs.getString("item_info"))
+                        .goalAmount(rs.getLong("goal_amount"))
+                        .category(rs.getInt("category"))
+                        .projectStatus(rs.getInt("project_status"))
+                        .fundingStartAt(fundingStartAt != null ? fundingStartAt.toLocalDateTime() : null)
+                        .fundingEndAt(fundingEndAt != null ? fundingEndAt.toLocalDateTime() : null)
+                        .paymentDueAt(paymentDueAt != null ? paymentDueAt.toLocalDateTime() : null)
+                        .deliveryStartAt(deliveryStartAt != null ? deliveryStartAt.toLocalDateTime() : null)
+                        .build();
+            }
+        }
+    }
 
     // 프로젝트 등록 후, AUTO_INCREMENT로 만들어진 project_id를 돌려줌
     // → 이 값을 이미지/리워드/심사 이력 insert에 그대로 넘겨서 FK로 사용
@@ -115,4 +159,39 @@ public class ProjectDAO {
 
         return projectIds;
     }
+    /*
+    public Long getFundedAmount(Connection conn, ProjectDTO old) {
+        String sql = """
+            
+                SELECT
+                    COALESCE(SUM(r.price), 0) AS current_amount
+                FROM reward r
+                JOIN funding_support fs
+                    ON r.reward_id = fs.reward_id
+                WHERE r.project_id = ?
+                GROUP BY r.project_id;
+            """;
+
+        int remainStock = -1;
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setLong(1, fsDTO.getRewardId());
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    remainStock =  rs.getInt(1);
+                }
+            }
+
+            if(remainStock < 0) {
+                throw new IllegalStateException("유효하지 않은 후원자 수");
+            }
+
+            return remainStock;
+        } catch (SQLException e) {
+            System.err.println("후원 신청자 수 조회 실패");
+            throw new RuntimeException(e);
+        }
+    }
+    */
+
 }

@@ -6,6 +6,41 @@ import java.sql.*;
 
 public class RewardDAO {
 
+    public RewardDTO findById(Connection conn, Long rewardId) throws SQLException {
+
+        String sql = """
+            SELECT *
+            FROM reward
+            WHERE reward_id = ?
+            """;
+
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, rewardId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+
+                if (!rs.next()) {
+                    return null;
+                }
+
+                return RewardDTO.builder()
+                        .rewardId(rs.getLong("reward_id"))
+                        .projectId(rs.getLong("project_id"))
+                        .title(rs.getString("title"))
+                        .content(rs.getString("content"))
+                        .imgBlob(rs.getBytes("img_blob"))
+                        .stockQuantity(rs.getInt("stock_quantity"))
+                        .price(rs.getLong("price"))
+                        .build();
+            }
+        }
+    }
+
+    public int getRemainReward() {
+        return 1;
+    }
+
     // 리워드 등록 후 생성된 reward_id 반환 → 후원(funding_support) insert에 사용
     public Long insert(Connection conn, RewardDTO reward) throws SQLException {
         String sql = "INSERT INTO reward(project_id, title, content, img_blob, stock_quantity, price) "

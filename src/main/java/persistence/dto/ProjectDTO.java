@@ -25,4 +25,7 @@ public class ProjectDTO {
     private LocalDateTime fundingEndAt;
     private LocalDateTime paymentDueAt;
     private LocalDateTime deliveryStartAt;
+
+    private Long fundedAmount;
+
 }

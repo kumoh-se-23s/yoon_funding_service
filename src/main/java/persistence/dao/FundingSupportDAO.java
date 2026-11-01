@@ -6,9 +6,7 @@ import persistence.dto.FundingSupportDTO;
 import javax.sql.DataSource;
 import java.sql.*;
 
-@RequiredArgsConstructor
 public class FundingSupportDAO {
-    private final DataSource ds;
 
     // 후원 등록 후 생성된 support_id 반환 → 리뷰(review) insert에 사용
     public Long insert(Connection conn, FundingSupportDTO support) throws SQLException {
@@ -31,7 +29,7 @@ public class FundingSupportDAO {
         }
     }
 
-    public int getRemainStock(Connection conn, FundingSupportDTO fsDTO) throws RuntimeException{
+    public int P(Connection conn, FundingSupportDTO fsDTO) throws RuntimeException{
         String sql = """
             SELECT r.stock_quantity - COUNT(fs.user_id)
             FROM reward r
