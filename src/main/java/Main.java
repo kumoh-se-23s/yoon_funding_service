@@ -49,9 +49,9 @@ public class Main {
         // test02RegisterProject();        // MAKER     - 프로젝트 기본 정보 등록
         // test03RegisterReward();         // MAKER     - 리워드 등록 및 프로젝트 신청
         // test04ApproveProject();         // ADMIN     - 프로젝트 등록 승인
-        // test05UpdateProfile();          // SUPPORTER - 개인정보 수정
+         test05UpdateProfile();          // SUPPORTER - 개인정보 수정
         // test06ViewProjects();           // SUPPORTER - 프로젝트 보기
-        test07FilterProjects();         // SUPPORTER - 프로젝트 필터링
+        //test07FilterProjects();         // SUPPORTER - 프로젝트 필터링
         // test08ApplyReward();            // SUPPORTER - 리워드 신청
         // test09RegisterReview();         // SUPPORTER - 리뷰 및 별점 등록
         // test10ConcurrencyControl();     // SUPPORTER - 제공 가능 수량 동시성 제어
