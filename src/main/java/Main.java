@@ -5,6 +5,7 @@ import service.InitDBService;
 import service.UserService;
 import view.UserView;
 import persistence.dto.ProjectDTO;
+import service.ProjectApprovalService;
 import service.ProjectRegistrationService;
 import java.time.LocalDateTime;
 import persistence.dto.RewardDTO;
@@ -46,6 +47,16 @@ public class Main {
                 rewardDAO,
                 projectApprovalDAO
         );
+
+    // DB 검사 4번: 관리자 프로젝트 승인 서비스
+private static final ProjectApprovalService projectApprovalService =
+        new ProjectApprovalService(
+                dataSource,
+                projectDAO,
+                rewardDAO,
+                projectApprovalDAO
+        );
+    
 
     private static final UserView userView = new UserView();
 
@@ -207,7 +218,94 @@ private static List<RewardDTO> demoRewards() {
                     .build()
     );
 }
+// DB 검사 4번: 관리자 프로젝트 승인
+private static void test04ApproveProject() {
 
+    Long projectId;
+
+    // 1. 승인할 프로젝트와 리워드, 승인 신청 내역 준비
+    try {
+        // 테스트용 메이커 로그인
+        UserDTO fixtureMaker = userService.login(
+                "user15",
+                "User1234!"
+        );
+
+        if (fixtureMaker == null) {
+            System.out.println(
+                    "[검사 4 준비 실패] 테스트용 메이커 계정이 없습니다."
+            );
+            return;
+        }
+
+        // 2. 승인 대기 프로젝트 생성
+        projectId = projectRegistrationService.registerProject(
+                fixtureMaker,
+                demoProject("[검사4] 관리자 승인 대기 프로젝트")
+        );
+
+        // 3. 리워드 등록 및 승인 신청
+        projectRegistrationService.registerRewardsAndApply(
+                fixtureMaker,
+                projectId,
+                demoRewards()
+        );
+
+        System.out.println("[검사 4 준비 완료]");
+        System.out.println("project_id = " + projectId);
+        System.out.println("프로젝트 상태 = 0(심사대기)");
+        System.out.println("관리자 계정으로 로그인하세요.");
+
+    } catch (RuntimeException e) {
+        System.out.println(
+                "[검사 4 준비 실패] " + e.getMessage()
+        );
+        return;
+    }
+
+    // 4. 관리자 로그인
+    if (!loginFromConsole(3)) {
+        return;
+    }
+
+    try {
+        // 5. 관리자 프로젝트 승인
+        projectApprovalService.approveProject(
+                loginUser,
+                projectId
+        );
+
+        // 6. 승인 결과 출력
+        System.out.println("[검사 4 성공]");
+        System.out.println("project_id = " + projectId);
+        System.out.println("프로젝트 상태 = 1(승인)");
+
+        // 7. 데이터베이스 확인 SQL
+        System.out.println("DB 확인 SQL:");
+
+        System.out.println(
+                "SELECT project_id, project_status " +
+                "FROM project WHERE project_id = " +
+                projectId + ";"
+        );
+
+        System.out.println(
+                "SELECT approval_id, project_id, " +
+                "project_status, eval_at " +
+                "FROM project_approval " +
+                "WHERE project_id = " + projectId +
+                " ORDER BY approval_id DESC;"
+        );
+
+    } catch (RuntimeException e) {
+        System.out.println(
+                "[검사 4 실패] " + e.getMessage()
+        );
+
+    } finally {
+        logout();
+    }
+}
     // 리워드 이미지를 byte[]로 읽는 메서드
 private static byte[] loadDemoImage(String fileName) {
 
