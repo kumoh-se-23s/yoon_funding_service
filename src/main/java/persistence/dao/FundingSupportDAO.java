@@ -29,7 +29,7 @@ public class FundingSupportDAO {
         }
     }
 
-    public int getRemainStock(Connection conn, FundingSupportDTO fsDTO) throws RuntimeException{
+    public int getRemainStock(Connection conn, Long rewardId) throws RuntimeException{
         String sql = """
             SELECT r.stock_quantity - COUNT(fs.user_id)
             FROM reward r
@@ -42,7 +42,7 @@ public class FundingSupportDAO {
 
         int remainStock = -1;
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setLong(1, fsDTO.getRewardId());
+            pstmt.setLong(1, rewardId);
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {

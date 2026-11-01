@@ -21,12 +21,22 @@ public class ProjectService {
         this.projectDAO = projectDAO;
     }
 
+    public ProjectDTO findById(Long id)  {
+        try (Connection conn = dataSource.getConnection()) {
+            return projectDAO.findById(conn, id);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     // 승인된 프로젝트 목록 조회
-    public List<ProjectDTO> findAll() throws SQLException {
+    public List<ProjectDTO> findAll() {
         // 풀에서 연결 빌리고 try 끝나면 반환
         try (Connection conn = dataSource.getConnection()) {
             return projectDAO.findAll(conn);
-        } // 자동으로 conn.close() 호출 -> 연결을 풀에 반환
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     // 품절 상태의 프로젝트 id 반환

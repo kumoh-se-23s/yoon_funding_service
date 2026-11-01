@@ -1,10 +1,57 @@
 package persistence.dao;
 
+import persistence.dto.ProjectDTO;
 import persistence.dto.RewardDTO;
 
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class RewardDAO {
+
+    public List<RewardDTO> findAll(Connection conn, Long projectId) {
+        String sql = """
+            SELECT
+                reward_id,
+                project_id,
+                title,
+                content,
+                img_blob,
+                stock_quantity,
+                price
+            FROM reward
+            WHERE project_id = ?
+            ORDER BY reward_id
+            """;
+
+        List<RewardDTO> rewards = new ArrayList<>();
+
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setLong(1, projectId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    RewardDTO reward = RewardDTO.builder()
+                            .rewardId(rs.getLong("reward_id"))
+                            .projectId(rs.getLong("project_id"))
+                            .title(rs.getString("title"))
+                            .content(rs.getString("content"))
+                            .imgBlob(rs.getBytes("img_blob"))
+                            .stockQuantity(rs.getInt("stock_quantity"))
+                            .price(rs.getLong("price"))
+                            .build();
+
+                    rewards.add(reward);
+                }
+                return rewards;
+            }
+
+        }catch(SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+
+    }
 
     public RewardDTO findById(Connection conn, Long rewardId) throws SQLException {
 

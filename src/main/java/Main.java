@@ -2,7 +2,10 @@ import persistence.PooledDataSource;
 import persistence.dao.*;
 import persistence.dto.UserDTO;
 import service.InitDBService;
+import service.RewardService;
 import service.UserService;
+import view.RewardView;
+import view.SupportView;
 import view.UserView;
 
 import javax.sql.DataSource;
@@ -41,6 +44,9 @@ public class Main {
     private static final ProjectService projectService = new ProjectService(dataSource, projectDAO);
     private static final ProjectView projectView = new ProjectView();
 
+    private static final RewardView rewardView = new RewardView();
+    private static final RewardService rewardService = new RewardService(dataSource, rewardDAO);
+
     public static void main(String[] args) {
         initDB();                       //  검사에 필요한 사전 데이터를 insert하는 메소드 (실행 후 주석 처리)
         // 검사할 항목 하나만 주석 해제하여 실행
@@ -52,7 +58,7 @@ public class Main {
          test05UpdateProfile();          // SUPPORTER - 개인정보 수정
         // test06ViewProjects();           // SUPPORTER - 프로젝트 보기
         //test07FilterProjects();         // SUPPORTER - 프로젝트 필터링
-        // test08ApplyReward();            // SUPPORTER - 리워드 신청
+         test08ApplyReward();            // SUPPORTER - 리워드 신청
         // test09RegisterReview();         // SUPPORTER - 리뷰 및 별점 등록
         // test10ConcurrencyControl();     // SUPPORTER - 제공 가능 수량 동시성 제어
     }
@@ -149,5 +155,17 @@ public class Main {
         } catch (SQLException e) {
             System.out.println("프로젝트 필터 조회 실패: " + e.getMessage());
         }
+    }
+
+    private static void test08ApplyReward() {
+        try (Scanner sc = new Scanner (System.in)) {
+            SupportView supportView = new SupportView(
+                    dataSource, loginUser, sc, projectView, projectService, rewardView, rewardService
+            );
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
     }
 }
