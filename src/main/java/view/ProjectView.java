@@ -5,6 +5,7 @@ import persistence.dto.ProjectDTO;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Scanner;
 
 // 프로젝트 조회 결과 콘솔에 출력
 public class ProjectView {
@@ -67,5 +68,34 @@ public class ProjectView {
             return "마감 (품절)";
         }
         return "진행 중";
+    }
+
+    public int[] inputFilters(Scanner scanner){
+        try{
+            System.out.print("카테고리 번호 입력 (-1: 전체): ");
+            // 우리가 정한 카테고리 넘버 입력하는 방식임.
+
+            if(!scanner.hasNextLine()){
+                return null;
+            }
+
+            int category = Integer.parseInt(scanner.nextLine().trim());
+
+            System.out.print("진행 상태 (0: 전체, 1: 진행 중, 2: 마감): ");
+            if (!scanner.hasNextLine()){
+                return null;
+            }
+            int fundingStatus = Integer.parseInt(scanner.nextLine().trim());
+
+            if(category < -1 || fundingStatus < 0 || fundingStatus > 2){
+                System.out.println("선택 범위를 다시 확인해주세요.");
+                return null;
+            }
+
+            return new int[]{category, fundingStatus};
+        } catch(NumberFormatException e){
+            System.out.println("번호는 정수로 입력해주세요.");
+            return null;
+        }
     }
 }
