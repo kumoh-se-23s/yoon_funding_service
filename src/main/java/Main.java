@@ -4,6 +4,9 @@ import persistence.dto.UserDTO;
 import service.InitDBService;
 import service.UserService;
 import view.UserView;
+import persistence.dto.ProjectDTO;
+import service.ProjectRegistrationService;
+import java.time.LocalDateTime;
 
 import javax.sql.DataSource;
 
@@ -31,6 +34,14 @@ public class Main {
             dataSource, new InitDAO(), userDAO, projectDAO, projectImageDAO,
             rewardDAO, projectApprovalDAO, fundingSupportDAO, reviewDAO);
     private static final UserService userService = new UserService(dataSource, userDAO);
+    // 프로젝트 등록 및 리워드 승인 신청 서비스
+    private static final ProjectRegistrationService projectRegistrationService =
+        new ProjectRegistrationService(
+                dataSource,
+                projectDAO,
+                rewardDAO,
+                projectApprovalDAO
+        );
 
     private static final UserView userView = new UserView();
 
@@ -84,6 +95,60 @@ public class Main {
         return false;
     }
 
+    // DB 검사 2번: 메이커 프로젝트 기본 정보 등록
+private static void test02RegisterProject() {
+
+    // 메이커 로그인
+    if (!loginFromConsole(3)) {
+        return;
+    }
+
+    try {
+        // 프로젝트 등록
+        Long projectId = projectRegistrationService.registerProject(
+                loginUser,
+                demoProject("[검사2] 메이커 프로젝트 기본 정보 등록")
+        );
+
+        // 등록 결과 출력
+        System.out.println("[검사 2 성공]");
+        System.out.println("새로 등록된 project_id = " + projectId);
+
+        // DB 확인용 SQL
+        System.out.println("DB 확인 SQL:");
+        System.out.println(
+                "SELECT * FROM project WHERE project_id = "
+                        + projectId + ";"
+        );
+
+    } catch (RuntimeException e) {
+        System.out.println("[검사 2 실패] " + e.getMessage());
+
+    } finally {
+        logout();
+    }
+}
+// 검사에 사용할 테스트용 프로젝트 생성
+private static ProjectDTO demoProject(String title) {
+
+    LocalDateTime start =
+            LocalDateTime.now().plusDays(2).withNano(0);
+
+    LocalDateTime end = start.plusDays(30);
+
+    return ProjectDTO.builder()
+            .title(title)
+            .subtitle("중간 데이터베이스 검사 시연용")
+            .introduction("메이커가 등록한 프로젝트입니다.")
+            .itemInfo("검사에 필요한 기본 제품 정보")
+            .goalAmount(300_000L)
+            .category(1)
+            .fundingStartAt(start)
+            .fundingEndAt(end)
+            .paymentDueAt(end.plusDays(2))
+            .deliveryStartAt(end.plusDays(14))
+            .build();
+}
     private static void test05UpdateProfile() {
         // 1) 로그인
         if (!loginFromConsole(3)) {
@@ -121,6 +186,8 @@ public class Main {
 
         logout();
     }
+
+    
 
     private static void test06ViewProjects() {
         try {
