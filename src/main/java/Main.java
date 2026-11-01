@@ -7,6 +7,10 @@ import view.UserView;
 import persistence.dto.ProjectDTO;
 import service.ProjectRegistrationService;
 import java.time.LocalDateTime;
+import persistence.dto.RewardDTO;
+import java.util.List;
+import java.io.InputStream;
+import java.io.IOException;
 
 import javax.sql.DataSource;
 
@@ -128,6 +132,105 @@ private static void test02RegisterProject() {
         logout();
     }
 }
+
+    // DB 검사 3번: 리워드 등록 및 프로젝트 승인 신청
+private static void test03RegisterReward() {
+
+    // 1. 메이커 로그인
+    if (!loginFromConsole(3)) {
+        return;
+    }
+
+    try {
+        // 2. 검사 3번 전용 프로젝트 생성
+        Long projectId = projectRegistrationService.registerProject(
+                loginUser,
+                demoProject("[검사3] 리워드 등록 및 승인 신청")
+        );
+
+        // 3. 리워드 2개 등록 및 승인 신청
+        List<Long> rewardIds =
+                projectRegistrationService.registerRewardsAndApply(
+                        loginUser,
+                        projectId,
+                        demoRewards()
+                );
+
+        // 4. 결과 출력
+        System.out.println("[검사 3 성공]");
+        System.out.println("project_id = " + projectId);
+        System.out.println("등록된 reward_id = " + rewardIds);
+        System.out.println("신청 상태 = 0(심사대기)");
+
+        // 5. DB 확인용 SQL
+        System.out.println("DB 확인 SQL:");
+
+        System.out.println(
+                "SELECT * FROM reward WHERE project_id = "
+                        + projectId + ";"
+        );
+
+        System.out.println(
+                "SELECT * FROM project_approval WHERE project_id = "
+                        + projectId + ";"
+        );
+
+    } catch (RuntimeException e) {
+
+        System.out.println("[검사 3 실패] " + e.getMessage());
+
+    } finally {
+
+        logout();
+    }
+}
+
+    // 테스트용 리워드 2개 생성
+private static List<RewardDTO> demoRewards() {
+
+    return List.of(
+
+            RewardDTO.builder()
+                    .title("[검사용] 기본 리워드")
+                    .content("기본 상품 1개")
+                    .imgBlob(loadDemoImage("D_main.jpg"))
+                    .stockQuantity(10)
+                    .price(30_000L)
+                    .build(),
+
+            RewardDTO.builder()
+                    .title("[검사용] 프리미엄 리워드")
+                    .content("기본 상품 + 추가 구성품")
+                    .imgBlob(loadDemoImage("D_reward_collector.jpg"))
+                    .stockQuantity(5)
+                    .price(50_000L)
+                    .build()
+    );
+}
+
+    // 리워드 이미지를 byte[]로 읽는 메서드
+private static byte[] loadDemoImage(String fileName) {
+
+    try (InputStream is =
+                 Main.class.getClassLoader()
+                         .getResourceAsStream("images/" + fileName)) {
+
+        if (is == null) {
+            throw new IllegalStateException(
+                    "테스트 이미지 누락: " + fileName
+            );
+        }
+
+        return is.readAllBytes();
+
+    } catch (IOException e) {
+
+        throw new IllegalStateException(
+                "이미지 읽기 실패: " + fileName, e
+        );
+    }
+}
+    
 // 검사에 사용할 테스트용 프로젝트 생성
 private static ProjectDTO demoProject(String title) {
 
