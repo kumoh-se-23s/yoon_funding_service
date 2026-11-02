@@ -24,6 +24,8 @@ import java.util.Scanner;
 public class Main {
     // ---------------- 객체 준비 ----------------
     // 싱글톤 커넥션 풀 : 프로그램 전체에서 이 하나만 사용
+    private static final Scanner sc = new Scanner(System.in);
+
     private static final DataSource dataSource = PooledDataSource.getDataSource();
 
     // DAO는 커넥션을 직접 얻지 않으므로 DataSource가 필요 없음 (Service가 conn을 넘겨줌)
@@ -57,7 +59,7 @@ private static final ProjectApprovalService projectApprovalService =
                 rewardDAO,
                 projectApprovalDAO
         );
-    private static final UserView userView = new UserView();
+    private static final UserView userView = new UserView(sc);
 
     // 현재 로그인한 회원 (로그인 세션 역할). 로그아웃 상태면 null
     private static UserDTO loginUser = null;
@@ -66,13 +68,14 @@ private static final ProjectApprovalService projectApprovalService =
     private static final ProjectService projectService = new ProjectService(dataSource, projectDAO);
     private static final ProjectView projectView = new ProjectView();
 
-    private static final RewardView rewardView = new RewardView();
-    private static final RewardService rewardService = new RewardService(dataSource, rewardDAO);
-
     private static final FundingSupportService fss = new FundingSupportService (
             dataSource, fundingSupportDAO, userDAO, projectDAO, rewardDAO
     );
     private static final ReviewService reviewService = new ReviewService(dataSource, reviewDAO);
+    private static final RewardService rewardService = new RewardService(dataSource, rewardDAO);
+
+    private static final RewardView rewardView = new RewardView(rewardService, fss);
+
     private static final ReviewView reviewView = new ReviewView(
             reviewDAO, reviewService, fss
     );
@@ -85,12 +88,12 @@ private static final ProjectApprovalService projectApprovalService =
         // test02RegisterProject();        // MAKER     - 프로젝트 기본 정보 등록
         // test03RegisterReward();         // MAKER     - 리워드 등록 및 프로젝트 신청
         // test04ApproveProject();         // ADMIN     - 프로젝트 등록 승인
-         test05UpdateProfile();          // SUPPORTER - 개인정보 수정
+        // test05UpdateProfile();          // SUPPORTER - 개인정보 수정
         // test06ViewProjects();           // SUPPORTER - 프로젝트 보기
         //test07FilterProjects();         // SUPPORTER - 프로젝트 필터링
-         test08ApplyReward();            // SUPPORTER - 리워드 신청
-        // test09RegisterReview();         // SUPPORTER - 리뷰 및 별점 등록
-        test10ConcurrencyControl();     // SUPPORTER - 제공 가능 수량 동시성 제어
+         //test08ApplyReward();            // SUPPORTER - 리워드 신청
+         test09RegisterReview();         // SUPPORTER - 리뷰 및 별점 등록
+        //test10ConcurrencyControl();     // SUPPORTER - 제공 가능 수량 동시성 제어
     }
 
 
@@ -376,7 +379,7 @@ private static byte[] loadDemoImage(String fileName) {
             userView.printUser("현재 정보 (변경 없음)", userService.findById(loginUser.getUserId()));
         }
 
-        logout();
+        //logout();
     }
 
     private static void test06ViewProjects() {
@@ -391,9 +394,9 @@ private static byte[] loadDemoImage(String fileName) {
     }
 
     private static void test07FilterProjects() {
-        Scanner scanner = new Scanner(System.in);
 
-        int[] filters = projectView.inputFilters(scanner);
+
+        int[] filters = projectView.inputFilters(sc);
         if (filters == null) {
             return;
         }
@@ -409,34 +412,61 @@ private static byte[] loadDemoImage(String fileName) {
     }
 
     private static void test08ApplyReward() {
-        try (Scanner sc = new Scanner (System.in)) {
+        if (!loginFromConsole(3)) {
+            return;
+        }
+
+
+        try {
+
             SupportView supportView = new SupportView(
-                    dataSource, loginUser, sc, projectView, projectService, rewardView, rewardService
+                    dataSource, loginUser, sc, projectView, projectService, rewardView, rewardService, fss
             );
+            fss.support(supportView.input());
+            System.out.println();
         } catch (Exception e) {
             e.printStackTrace();
+        } finally {
+            logout();
         }
+
+
     }
 
     private static void test09RegisterReview() {
-        try (Scanner sc = new Scanner (System.in)) {
+        if (!loginFromConsole(3)) {
+            return;
+        }
+
+        try {
             reviewView.input(sc, loginUser);
         } catch (Exception e) {
             e.printStackTrace();
+        } finally {
+            logout();
         }
     }
+
     private static void test10ConcurrencyControl() {
+        if (!loginFromConsole(3)) {
+            return;
+        }
+
         try {
-            rewardDAO.update(dataSource.getConnection(), 1, 4);
-            try (Scanner sc = new Scanner (System.in)) {
+            rewardDAO.update(dataSource.getConnection(), 0, 6, 4);
+            try {
                 SupportView supportView = new SupportView(
-                        dataSource, loginUser, sc, projectView, projectService, rewardView, rewardService
+                        dataSource, loginUser, sc, projectView, projectService, rewardView, rewardService, fss
                 );
+                fss.support(supportView.input());
+                System.out.println();
             } catch (Exception e) {
                 e.printStackTrace();
             }
         } catch (Exception e) {
             e.printStackTrace();
+        } finally {
+            logout();
         }
 
     }

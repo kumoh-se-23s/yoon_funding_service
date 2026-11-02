@@ -96,9 +96,6 @@ public class FundingSupportDAO {
                 }
             }
 
-            if(remainStock < 0) {
-                throw new IllegalStateException("유효하지 않은 후원자 수");
-            }
 
             return remainStock;
         } catch (SQLException e) {

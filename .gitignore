@@ -16,6 +16,8 @@ out/
 !**/src/main/**/out/
 !**/src/test/**/out/
 
+.src/main/resources/config
+
 ### Eclipse ###
 .apt_generated
 .classpath
@@ -27,6 +29,7 @@ out/
 bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
+
 
 ### NetBeans ###
 /nbproject/private/

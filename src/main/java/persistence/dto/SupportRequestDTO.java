@@ -16,6 +16,7 @@ public class SupportRequestDTO {
     private Long rewardId;
 
     private String recipientName;
+    private String recipientContact;
     private String deliveryAddress;
     private String deliveryDetailAddress;
 }
