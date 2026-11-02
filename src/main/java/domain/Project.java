@@ -7,7 +7,7 @@ import java.util.List;
 
 public class Project {
     public final static String[] approvalStatus = {"심사대기", "승인", "반려"};
-    public final static String[] successStatus = {"시작전", "진행중", "실패", "성공"};
+    public final static String[] successStatus = {"시작전", "진행중", "종료"};
 
     public static boolean isApprovl (ProjectDTO projectDTO) {
         return Project.getApprovalStatus(projectDTO).equals("승인");
@@ -33,12 +33,16 @@ public class Project {
         else if(LocalDateTime.now().isBefore(end))
             return successStatus[1];
         else {
+            return successStatus[2];
+            /*
             Long goalMount = checkNullPoint(projectDTO.getGoalAmount());
-            Long fundedAmount = checkNullPoint(projectDTO.getGoalAmount());
+            Long fundedAmount = checkNullPoint(projectDTO.getFundedAmount());
             if (goalMount >= fundedAmount)
                 return successStatus[2];
             else
                 return successStatus[3];
+
+             */
         }
 
     }

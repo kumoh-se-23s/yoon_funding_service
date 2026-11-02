@@ -16,30 +16,35 @@ public class FundingSupport {
 
     public FundingSupport (
             SupportRequestDTO request,
-            UserDTO userDTO,
-            ProjectDTO projectDTO,
-            RewardDTO rewardDTO
+            UserDTO supporterDTO,
+            ProjectDTO requestProjectDTO,
+            RewardDTO requestRewardDTO
     ) throws RuntimeException {
         if (request == null) {
             throw new IllegalArgumentException("후원 신청 정보가 없습니다.");
         }
-        else if (userDTO == null || request.getUserId() == null || request.getUserId() != userDTO.getUserId()) {
+        else if (
+                supporterDTO == null
+                        || request.getUserId() == null
+                        || request.getUserId() != supporterDTO.getUserId()
+                        || supporterDTO.getRole()!= 1
+        ) {
             throw new IllegalArgumentException("유효하지 않은 신청자 정보.");
         }
-        else if (projectDTO == null || projectDTO.getProjectId() == null || projectDTO.getProjectId() != request.getProjectId()) {
+        else if (requestProjectDTO == null || requestProjectDTO.getProjectId() == null || requestProjectDTO.getProjectId() != request.getProjectId()) {
             throw new IllegalArgumentException("유효하지 않은 신청 프로젝트 정보.");
         }
-        else if (!Project.getApprovalStatus(projectDTO).equals("승인")) {
+        else if (!Project.getApprovalStatus(requestProjectDTO).equals("승인")) {
             String err = "신청 프로젝트는 승인 되지 않음.";
             System.out.println(err);
             throw new IllegalStateException(err);
         }
-        else if (!Project.getSuccessStatus(projectDTO).equals("진행중")) {
+        else if (!Project.getSuccessStatus(requestProjectDTO).equals("진행중")) {
             String err = "진행중인 프로젝트가 아닙니다.";
             System.out.println(err);
             throw new IllegalStateException(err);
         }
-        else if (rewardDTO == null || rewardDTO.getRewardId() == null || request.getRewardId() != rewardDTO.getRewardId()) {
+        else if (requestRewardDTO == null || requestRewardDTO.getRewardId() == null || request.getRewardId() != requestRewardDTO.getRewardId()) {
             throw new IllegalArgumentException("유효하지 않은 신청 리워드 정보.");
         }
         else {
@@ -54,25 +59,25 @@ public class FundingSupport {
             if ( this.recipientName == null
                     ||  this.recipientName.isBlank()
             ) {
-                if(userDTO.getName() == null || userDTO.getName().isBlank())
+                if(supporterDTO.getName() == null || supporterDTO.getName().isBlank())
                     throw new IllegalArgumentException("수령인 이름이 필요합니다.");
-                this.recipientName = userDTO.getName();
+                this.recipientName = supporterDTO.getName();
             }
 
             if (request.getDeliveryAddress() == null
                     || request.getDeliveryAddress().isBlank()
             ) {
-                if(userDTO.getAddress() == null || userDTO.getAddress().isBlank())
+                if(supporterDTO.getAddress() == null || supporterDTO.getAddress().isBlank())
                     throw new IllegalArgumentException("배송 주소가 필요합니다.");
-                this.deliveryAddress = userDTO.getAddress();
+                this.deliveryAddress = supporterDTO.getAddress();
             }
 
             if (request.getDeliveryAddress() == null
                     || request.getDeliveryAddress().isBlank()
             ) {
-                if(userDTO.getDetailAddress() == null || userDTO.getDetailAddress().isBlank())
+                if(supporterDTO.getDetailAddress() == null || supporterDTO.getDetailAddress().isBlank())
                     throw new IllegalArgumentException("배송 상세 주소가 필요합니다.");
-                this.deliveryDetailAddress = userDTO.getDetailAddress();
+                this.deliveryDetailAddress = supporterDTO.getDetailAddress();
             }
         }
     }
