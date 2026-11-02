@@ -195,4 +195,34 @@ public class ProjectDAO {
     }
     */
 
+  
+
+    // 프로젝트 조회 및 행 잠금
+    public ProjectDTO findByIdForUpdate(Connection conn, Long projectId)
+          throws SQLException {
+
+      return selectById(conn, projectId, true);
+    }
+
+    // 프로젝트 상태 변경
+    // 기존 상태와 일치할 때만 변경
+    public int changeStatus(
+          Connection conn,
+          Long projectId,
+          int before,
+          int after) throws SQLException {
+
+      String sql = "UPDATE project "
+              + "SET project_status = ? "
+              + "WHERE project_id = ? AND project_status = ?";
+
+      try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+          pstmt.setInt(1, after);
+          pstmt.setLong(2, projectId);
+          pstmt.setInt(3, before);
+
+          return pstmt.executeUpdate();
+      }
+    }
 }
