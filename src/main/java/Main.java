@@ -12,6 +12,12 @@ import view.ProjectView;
 import java.sql.SQLException;
 import java.util.Scanner;
 
+import persistence.dto.ProjectDTO;
+import persistence.dto.RewardFundingStatusDTO;
+import persistence.dto.ProjectSupporterDTO;
+
+import java.util.List;
+
 public class Main {
     // ---------------- 객체 준비 ----------------
     // 싱글톤 커넥션 풀 : 프로그램 전체에서 이 하나만 사용
@@ -45,13 +51,13 @@ public class Main {
         initDB();                       //  검사에 필요한 사전 데이터를 insert하는 메소드 (실행 후 주석 처리)
         // 검사할 항목 하나만 주석 해제하여 실행
 
-        // test01ViewFundingStatus();      // MAKER     - 프로젝트별 펀딩 현황 보기
+        test01ViewFundingStatus();      // MAKER     - 프로젝트별 펀딩 현황 보기
         // test02RegisterProject();        // MAKER     - 프로젝트 기본 정보 등록
         // test03RegisterReward();         // MAKER     - 리워드 등록 및 프로젝트 신청
         // test04ApproveProject();         // ADMIN     - 프로젝트 등록 승인
         // test05UpdateProfile();          // SUPPORTER - 개인정보 수정
         // test06ViewProjects();           // SUPPORTER - 프로젝트 보기
-        test07FilterProjects();         // SUPPORTER - 프로젝트 필터링
+        // test07FilterProjects();         // SUPPORTER - 프로젝트 필터링
         // test08ApplyReward();            // SUPPORTER - 리워드 신청
         // test09RegisterReview();         // SUPPORTER - 리뷰 및 별점 등록
         // test10ConcurrencyControl();     // SUPPORTER - 제공 가능 수량 동시성 제어
@@ -148,6 +154,52 @@ public class Main {
             );
         } catch (SQLException e) {
             System.out.println("프로젝트 필터 조회 실패: " + e.getMessage());
+        }
+    }
+
+    private static void test01ViewFundingStatus() {
+        if (!loginFromConsole(3)) {
+            return;
+        }
+
+        try {
+            List<ProjectDTO> projects = projectService.findByMaker(loginUser);
+            projectView.printMakerProjects(projects);
+
+            if (projects.isEmpty()) {
+                return;
+            }
+
+            Long projectId = Long.parseLong(
+                    userView.input("현황을 조회할 프로젝트 번호: "));
+
+            ProjectDTO selectedProject = null;
+
+            for (ProjectDTO project : projects) {
+                if (projectId.equals(project.getProjectId())) {
+                    selectedProject = project;
+                }
+            }
+
+            if (selectedProject == null) {
+                System.out.println("본인이 등록한 프로젝트 번호를 입력해 주세요.");
+                return;
+            }
+
+            List<RewardFundingStatusDTO> rewards =
+                    projectService.findRewardFundingStatus(loginUser, projectId);
+
+            List<ProjectSupporterDTO> supporters =
+                    projectService.findProjectSupporters(loginUser, projectId);
+
+            projectView.printFundingStatus(selectedProject, rewards, supporters);
+
+        } catch (NumberFormatException e) {
+            System.out.println("프로젝트 번호는 정수로 입력해 주세요.");
+        } catch (IllegalArgumentException e) {
+            System.out.println(e.getMessage());
+        } catch (SQLException e) {
+            System.out.println("펀딩 현황 조회 실패: " + e.getMessage());
         }
     }
 }
