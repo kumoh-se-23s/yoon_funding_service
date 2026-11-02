@@ -6,11 +6,14 @@ import java.sql.*;
 
 public class ProjectApprovalDAO {
 
-    public Long insert(Connection conn, ProjectApprovalDTO approval) throws SQLException {
-        String sql = "INSERT INTO project_approval(project_id, project_status, reject_reason, eval_at, submission_at) "
+    public Long insert(Connection conn, ProjectApprovalDTO approval)
+            throws SQLException {
+        String sql = "INSERT INTO project_approval(project_id, project_status, "
+                + "reject_reason, eval_at, submission_at) "
                 + "VALUES(?, ?, ?, ?, COALESCE(?, NOW()))";
 
-        try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (PreparedStatement pstmt =
+                     conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             pstmt.setLong(1, approval.getProjectId());
             pstmt.setInt(2, approval.getProjectStatus());
             pstmt.setString(3, approval.getRejectReason());   // 승인이면 null
@@ -19,6 +22,54 @@ public class ProjectApprovalDAO {
 
             pstmt.executeUpdate();
             return ProjectDAO.generatedKey(pstmt);
+        }
+    }
+
+    // 가장 최근 프로젝트 승인 신청 이력 조회
+    // forUpdate가 true이면 해당 행 잠금
+    public ProjectApprovalDTO findLatestByProject(
+            Connection conn, Long projectId, boolean forUpdate)
+            throws SQLException {
+        String sql = "SELECT * FROM project_approval WHERE project_id = ? "
+                + "ORDER BY approval_id DESC LIMIT 1"
+                + (forUpdate ? " FOR UPDATE" : "");
+
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setLong(1, projectId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (!rs.next()) {
+                    return null;
+                }
+
+                ProjectApprovalDTO approval = new ProjectApprovalDTO();
+
+                approval.setApprovalId(rs.getLong("approval_id"));
+                approval.setProjectId(rs.getLong("project_id"));
+                approval.setProjectStatus(rs.getInt("project_status"));
+                approval.setRejectReason(rs.getString("reject_reason"));
+                approval.setEvalAt(
+                        rs.getObject("eval_at", java.time.LocalDateTime.class));
+                approval.setSubmissionAt(
+                        rs.getObject("submission_at", java.time.LocalDateTime.class));
+
+                return approval;
+            }
+        }
+    }
+
+    // 승인 대기(0) 상태의 심사 이력을 승인(1) 상태로 변경
+    public int approvePending(Connection conn, Long approvalId)
+            throws SQLException {
+        String sql = "UPDATE project_approval "
+                + "SET project_status = 1, "
+                + "reject_reason = NULL, "
+                + "eval_at = NOW() "
+                + "WHERE approval_id = ? AND project_status = 0";
+
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setLong(1, approvalId);
+            return pstmt.executeUpdate();
         }
     }
 }
