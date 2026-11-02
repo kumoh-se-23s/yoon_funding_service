@@ -11,6 +11,7 @@ public class FundingSupport {
     private final Long rewardId;
 
     private String recipientName;
+    private String recipientContact = "010-1111-1111";
     private String deliveryAddress;
     private String deliveryDetailAddress;
 
@@ -53,6 +54,7 @@ public class FundingSupport {
             this.rewardId = request.getRewardId();
 
             this.recipientName = request.getRecipientName();
+            this.recipientContact = request.getRecipientContact();
             this.deliveryAddress = request.getDeliveryAddress();
             this.deliveryDetailAddress = request.getDeliveryDetailAddress();
 
@@ -62,6 +64,12 @@ public class FundingSupport {
                 if(supporterDTO.getName() == null || supporterDTO.getName().isBlank())
                     throw new IllegalArgumentException("수령인 이름이 필요합니다.");
                 this.recipientName = supporterDTO.getName();
+            }
+
+            if(this.recipientContact == null
+                    || this.recipientContact.isBlank()
+            ) {
+                this.recipientContact = "010-1111-1111";
             }
 
             if (request.getDeliveryAddress() == null
@@ -82,8 +90,8 @@ public class FundingSupport {
         }
     }
 
-    public int checkRewardStock (int stock) throws RuntimeException {
-        if(stock == 0) {
+    public static int checkRewardStock (int stock) throws RuntimeException {
+        if(stock <= 0) {
             String err = "신청 수량이 남아 있지 않음.";
             System.out.println(err);
             throw new IllegalStateException(err);
@@ -99,6 +107,7 @@ public class FundingSupport {
                 .rewardId(rewardId)
                 .supportedAt(LocalDateTime.now())
                 .recipientName(recipientName)
+                .recipientContact(recipientContact)
                 .deliveryAddress(deliveryAddress)
                 .deliveryDetailAddress(deliveryDetailAddress)
                 .cancelStatus(false)

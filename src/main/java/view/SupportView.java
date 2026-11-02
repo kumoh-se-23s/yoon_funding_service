@@ -39,6 +39,8 @@ public class SupportView {
     @NonNull
     private RewardService rewardService;
 
+    @NonNull
+    private FundingSupportService fss;
 
     private ProjectDTO supportProject = null;
     private RewardDTO supportReward = null;
@@ -52,7 +54,7 @@ public class SupportView {
         fss.support(requestDTO);
     }
 
-    private SupportRequestDTO input () {
+    public SupportRequestDTO input () {
         this.supportProject = projectInput();
         this.supportReward = rewardInput(supportProject.getProjectId());
 
@@ -64,10 +66,16 @@ public class SupportView {
 
         System.out.println("수령인 정보를 입력하시겠습니까? (y/n)");
         char cont = Character.toUpperCase(sc.next().charAt(0));
+        sc.nextLine();
+
         if(cont == 'Y') {
             System.out.println("수령인이름: ");
             String recipientName = sc.next();
             request.setRecipientName(recipientName);
+
+            System.out.println("전화번호: ");
+            String recipientContact = sc.next();
+            request.setRecipientContact(recipientContact);
 
             System.out.println("배송주소: ");
             String deliveryAddress = sc.next();
@@ -85,6 +93,7 @@ public class SupportView {
         viewProjects();
         System.out.println("프로젝트 번호를 선택해주세요");
         Long projectId = sc.nextLong();
+        sc.nextLine();
 
         ProjectDTO supportProject = projectService.findById(projectId);
 
@@ -103,9 +112,13 @@ public class SupportView {
     }
 
     private RewardDTO rewardInput(Long projectId) {
+
         rewardView.printRewards(projectId);
         System.out.println("리워드 번호를 선택해주세요");
         Long rewardId = sc.nextLong();
+        sc.nextLine();
+
+        FundingSupport.checkRewardStock(fss.getRemainStock(rewardId));
 
         RewardDTO supportReward = rewardService.findById(rewardId);
 

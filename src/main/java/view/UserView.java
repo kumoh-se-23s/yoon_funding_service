@@ -1,16 +1,18 @@
 package view;
 
+import lombok.RequiredArgsConstructor;
 import persistence.dto.UserDTO;
 
 import java.util.Scanner;
 
+@RequiredArgsConstructor
 // 콘솔 입출력 담당 (입력 받기 + 결과 출력)
 public class UserView {
     private static final String[] ROLE_NAMES = {"관리자", "서포터", "메이커"};
 
     // System.in을 감싼 Scanner는 프로그램 전체에서 하나만 쓰고 close 하지 않음
     // (close 하면 System.in까지 닫혀서 이후 입력을 못 받음)
-    private final Scanner scanner = new Scanner(System.in);
+    private final Scanner scanner;
 
     // 한 줄 입력 (앞뒤 공백 제거)
     public String input(String prompt) {

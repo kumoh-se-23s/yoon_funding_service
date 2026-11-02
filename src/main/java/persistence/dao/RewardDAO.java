@@ -8,16 +8,18 @@ import java.util.List;
 
 public class RewardDAO {
 
-    public int update(Connection conn, int stockQuantity, int rewardId) throws SQLException {
+    public int update(Connection conn, int stockQuantity, int rewardId, int projectId) throws SQLException {
         String sql = """
         UPDATE reward
         SET stock_quantity = ?
         WHERE reward_id = ?
+            AND project_id = ?
         """;
 
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, stockQuantity);
             pstmt.setLong(2, rewardId);
+            pstmt.setLong(3, projectId);
 
             return pstmt.executeUpdate();
         }

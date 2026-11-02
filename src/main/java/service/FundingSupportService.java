@@ -60,9 +60,15 @@ public class FundingSupportService {
 
                 conn.commit();
 
+                String prompt ="user_id: " + suppoerterDTO.getUserId() + "project_id: " + requestProjectDTO.getProjectId() + "reward_id: " + requestRewardDTO.getRewardId();
+                System.out.println(prompt);
+                System.out.println("apply success");
+
             } catch (Exception e) {
 
                 conn.rollback();
+
+                System.out.println("apply fail");
                 throw new RuntimeException(e);
             }
 

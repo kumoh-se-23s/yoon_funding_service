@@ -38,11 +38,13 @@ public class ReviewView {
         System.out.println("리뷰를 등록할 projectId?: ");
         Long supportProjectId= sc.nextLong();
 
+        sc.nextLine();
         System.out.print("리뷰 내용: ");
         String content = sc.nextLine();
 
         System.out.print("평점(0.0 ~ 5.0): ");
         BigDecimal score = sc.nextBigDecimal();
+        sc.nextLine();
 
         ReviewDTO reviewDTO = ReviewDTO.builder()
                 .supportId(supportProjectId)
