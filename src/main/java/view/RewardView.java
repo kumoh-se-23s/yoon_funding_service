@@ -12,8 +12,8 @@ import java.util.List;
 
 @RequiredArgsConstructor
 public class RewardView {
-    private RewardService rewardService;
-    private FundingSupportService fss;
+    private final RewardService rewardService;
+    private final FundingSupportService fss;
 
     public void printRewards(Long projectId) {
         List<RewardDTO> rewards = rewardService.findAll(projectId);

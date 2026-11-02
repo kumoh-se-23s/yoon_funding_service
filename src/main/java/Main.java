@@ -72,33 +72,33 @@ private static final ProjectApprovalService projectApprovalService =
     private static final ProjectService projectService = new ProjectService(dataSource, projectDAO);
     private static final ProjectView projectView = new ProjectView();
 
-    private static final RewardView rewardView = new RewardView();
     private static final RewardService rewardService = new RewardService(dataSource, rewardDAO);
 
     private static final FundingSupportService fss = new FundingSupportService (
             dataSource, fundingSupportDAO, userDAO, projectDAO, rewardDAO
     );
+    private static final RewardView rewardView = new RewardView(rewardService, fss);
     private static final ReviewService reviewService = new ReviewService(dataSource, reviewDAO);
     private static final ReviewView reviewView = new ReviewView(
             reviewDAO, reviewService, fss
     );
 
     public static void main(String[] args) {
-        initDB();                       //  검사에 필요한 사전 데이터를 insert하는 메소드 (실행 후 주석 처리)
+        //initDB();                       //  검사에 필요한 사전 데이터를 insert하는 메소드 (실행 후 주석 처리)
         // 검사할 항목 하나만 주석 해제하여 실행
 
-        test01ViewFundingStatus();      // MAKER     - 프로젝트별 펀딩 현황 보기
-        // test02RegisterProject();        // MAKER     - 프로젝트 기본 정보 등록
-        // test03RegisterReward();         // MAKER     - 리워드 등록 및 프로젝트 신청
-        // test04ApproveProject();         // ADMIN     - 프로젝트 등록 승인
-         test05UpdateProfile();          // SUPPORTER - 개인정보 수정
-        // test06ViewProjects();           // SUPPORTER - 프로젝트 보기
+        //test01ViewFundingStatus();      // MAKER     - 프로젝트별 펀딩 현황 보기
+        //test02RegisterProject();        // MAKER     - 프로젝트 기본 정보 등록
+         //test03RegisterReward();         // MAKER     - 리워드 등록 및 프로젝트 신청
+        //test04ApproveProject();         // ADMIN     - 프로젝트 등록 승인
+         //test05UpdateProfile();          // SUPPORTER - 개인정보 수정
+         //test06ViewProjects();           // SUPPORTER - 프로젝트 보기
         //test07FilterProjects();         // SUPPORTER - 프로젝트 필터링
          test08ApplyReward();            // SUPPORTER - 리워드 신청
         // test07FilterProjects();         // SUPPORTER - 프로젝트 필터링
         // test08ApplyReward();            // SUPPORTER - 리워드 신청
         // test09RegisterReview();         // SUPPORTER - 리뷰 및 별점 등록
-        test10ConcurrencyControl();     // SUPPORTER - 제공 가능 수량 동시성 제어
+        //test10ConcurrencyControl();     // SUPPORTER - 제공 가능 수량 동시성 제어
     }
 
 
@@ -417,10 +417,18 @@ private static byte[] loadDemoImage(String fileName) {
     }
 
     private static void test08ApplyReward() {
-        try (Scanner sc = new Scanner (System.in)) {
+        // 로그인 불러오도록 수정함.
+        if (!loginFromConsole(3)) {
+            return;
+        }
+
+        try (Scanner sc = new Scanner(System.in)) {
             SupportView supportView = new SupportView(
-                    dataSource, loginUser, sc, projectView, projectService, rewardView, rewardService
+                    dataSource, loginUser, sc,
+                    projectView, projectService, rewardView, rewardService
             );
+
+            supportView.supportView();
         } catch (Exception e) {
             e.printStackTrace();
         }
