@@ -6,6 +6,7 @@ import view.*;
 
 import persistence.dto.ProjectDTO;
 import persistence.dto.RewardDTO;
+import persistence.dao.InterestDAO;
 
 import service.ProjectRegistrationService;
 import service.ProjectApprovalService;
@@ -36,11 +37,12 @@ public class Main {
     private static final ProjectApprovalDAO projectApprovalDAO = new ProjectApprovalDAO();
     private static final FundingSupportDAO fundingSupportDAO = new FundingSupportDAO();
     private static final ReviewDAO reviewDAO = new ReviewDAO();
+    private static final InterestDAO interestDAO = new InterestDAO();
 
     // Service는 DataSource를 받아 커넥션을 얻고 트랜잭션을 관리
     private static final InitDBService initDBService = new InitDBService(
             dataSource, new InitDAO(), userDAO, projectDAO, projectImageDAO,
-            rewardDAO, projectApprovalDAO, fundingSupportDAO, reviewDAO);
+            rewardDAO, projectApprovalDAO, fundingSupportDAO, reviewDAO, interestDAO);
     private static final UserService userService = new UserService(dataSource, userDAO);
 // DB 검사 2, 3번: 프로젝트 등록 및 승인 신청
 private static final ProjectRegistrationService projectRegistrationService =
@@ -90,9 +92,9 @@ private static final ProjectApprovalService projectApprovalService =
         // test04ApproveProject();         // ADMIN     - 프로젝트 등록 승인
         // test05UpdateProfile();          // SUPPORTER - 개인정보 수정
         // test06ViewProjects();           // SUPPORTER - 프로젝트 보기
-        //test07FilterProjects();         // SUPPORTER - 프로젝트 필터링
-         //test08ApplyReward();            // SUPPORTER - 리워드 신청
-         test09RegisterReview();         // SUPPORTER - 리뷰 및 별점 등록
+        // test07FilterProjects();         // SUPPORTER - 프로젝트 필터링
+        // test08ApplyReward();            // SUPPORTER - 리워드 신청
+        // test09RegisterReview();         // SUPPORTER - 리뷰 및 별점 등록
         //test10ConcurrencyControl();     // SUPPORTER - 제공 가능 수량 동시성 제어
     }
 

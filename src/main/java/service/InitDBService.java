@@ -30,10 +30,12 @@ public class InitDBService {
     private final ProjectApprovalDAO projectApprovalDAO;
     private final FundingSupportDAO fundingSupportDAO;
     private final ReviewDAO reviewDAO;
+    private final InterestDAO interestDAO;
 
     public InitDBService(DataSource dataSource, InitDAO initDAO, UserDAO userDAO, ProjectDAO projectDAO,
                          ProjectImageDAO projectImageDAO, RewardDAO rewardDAO, ProjectApprovalDAO projectApprovalDAO,
-                         FundingSupportDAO fundingSupportDAO, ReviewDAO reviewDAO) {
+                         FundingSupportDAO fundingSupportDAO, ReviewDAO reviewDAO,
+                         InterestDAO interestDAO) {
         this.dataSource = dataSource;
         this.initDAO = initDAO;
         this.userDAO = userDAO;
@@ -43,6 +45,7 @@ public class InitDBService {
         this.projectApprovalDAO = projectApprovalDAO;
         this.fundingSupportDAO = fundingSupportDAO;
         this.reviewDAO = reviewDAO;
+        this.interestDAO = interestDAO;
     }
 
     // 프로젝트 상태 코드
@@ -63,10 +66,15 @@ public class InitDBService {
     // login_id는 UNIQUE라 키가 겹치지 않음
     private final Map<String, Long> userIds = new HashMap<>();
 
+    // insert 후 DB가 만들어 준 project_id 보관 : 프로젝트 코드 → project_id
+    // A,B = 펀딩요정 / C,D = 달리는민준 / E,F = 밤하늘별 (seed_images.sql과 같은 코드)
+    private final Map<String, Long> projectIds = new HashMap<>();
+
     public void initDB() {
         try (Connection conn = dataSource.getConnection()) {
             initDAO.clearAllTables(conn);
             userIds.clear();   // 이전 실행에서 받아 둔 user_id는 버림
+            projectIds.clear();
 
             try {
                 conn.setAutoCommit(false);   // 여기부터 하나의 트랜잭션
@@ -78,6 +86,7 @@ public class InitDBService {
                 insertMinjunProjectB(conn);       // 1차 반려 → 재신청 승인 + 현재 진행 중
                 insertTaehyunTreatment(conn);     // 승인 + 현재 진행 중
                 insertTaehyunDronix(conn);        // 승인 + 펀딩 성공 + 배송 지남 + 리뷰
+                insertInterests(conn);            // 관심 프로젝트(좋아요) 20건
 
                 conn.commit();
                 System.out.println("initDB 완료 : 사전 데이터 입력이 끝났습니다.");
@@ -139,6 +148,7 @@ public class InitDBService {
                 .paymentDueAt(null)
                 .deliveryStartAt(null)
                 .build());
+        projectIds.put("A", projectId);
 
         insertImage(conn, projectId, "A_main.jpg", true, 1, null);
         insertImage(conn, projectId, "A_detail.jpg", false, 2, "2026-08-18 13:21:00");
@@ -166,6 +176,7 @@ public class InitDBService {
                 .paymentDueAt(dt("2026-10-03 12:00:00"))
                 .deliveryStartAt(dt("2026-10-15 00:00:00"))
                 .build());
+        projectIds.put("B", projectId);
 
         insertImage(conn, projectId, "B_main.jpg", true, 1, null);
         insertImage(conn, projectId, "B_detail.jpg", false, 2, null);
@@ -199,6 +210,7 @@ public class InitDBService {
                 .paymentDueAt(dt("2026-09-02 10:00:00"))
                 .deliveryStartAt(dt("2026-09-20 09:00:00"))
                 .build());
+        projectIds.put("C", projectId);
 
         insertImage(conn, projectId, "C_main.jpg", true, 1, null);
         insertImage(conn, projectId, "C_detail.jpg", false, 2, null);
@@ -234,6 +246,7 @@ public class InitDBService {
                 .paymentDueAt(dt("2026-11-05 10:00:00"))
                 .deliveryStartAt(dt("2026-11-20 09:00:00"))
                 .build());
+        projectIds.put("D", projectId);
 
         insertImage(conn, projectId, "D_main.jpg", true, 1, null);
         insertImage(conn, projectId, "D_detail.jpg", false, 2, null);
@@ -268,6 +281,7 @@ public class InitDBService {
                 .paymentDueAt(dt("2026-11-05 10:00:00"))
                 .deliveryStartAt(dt("2026-11-20 09:00:00"))
                 .build());
+        projectIds.put("E", projectId);
 
         insertImage(conn, projectId, "E_main.jpg", true, 1, null);
         insertImage(conn, projectId, "E_detail.jpg", false, 2, null);
@@ -302,6 +316,7 @@ public class InitDBService {
                 .paymentDueAt(dt("2026-09-30 10:00:00"))
                 .deliveryStartAt(dt("2026-10-10 09:00:00"))
                 .build());
+        projectIds.put("F", projectId);
 
         insertImage(conn, projectId, "F_main.jpg", true, 1, null);
         insertImage(conn, projectId, "F_detail.jpg", false, 2, null);
@@ -321,6 +336,34 @@ public class InitDBService {
         insertReview(conn, supportF2, "조립 과정이 생각보다 어렵고 설명이 조금 더 자세했으면 좋겠습니다.", "2.0", "2026-10-18 21:30:00");
     }
 
+
+    // 8. 관심 프로젝트(interest) : 총 20건 (B 3 / C 6 / D 5 / E 4 / F 2)
+    private void insertInterests(Connection conn) throws SQLException {
+        // 관심 내역 10건 : B~F 각각 2건 (이서연(user02)은 여러 프로젝트를 찜한 사용자)
+        insertInterest(conn, "user02", "B", "2026-09-03 10:00:00");
+        insertInterest(conn, "user09", "B", "2026-09-08 15:20:00");
+        insertInterest(conn, "user02", "C", "2026-08-03 11:00:00");
+        insertInterest(conn, "user10", "C", "2026-08-10 18:30:00");
+        insertInterest(conn, "user02", "D", "2026-09-04 12:00:00");
+        insertInterest(conn, "user11", "D", "2026-09-12 20:10:00");
+        insertInterest(conn, "user02", "E", "2026-08-02 13:00:00");
+        insertInterest(conn, "user12", "E", "2026-08-15 16:40:00");
+        insertInterest(conn, "user02", "F", "2026-09-05 14:00:00");
+        insertInterest(conn, "user13", "F", "2026-09-18 19:50:00");
+
+        // 좋아요 추가 : B +1 / C +4 / D +3 / E +2 / F 그대로
+        String addedAt = "2026-10-14 12:00:00";
+        insertInterest(conn, "user03", "B", addedAt);
+        insertInterest(conn, "user03", "C", addedAt);
+        insertInterest(conn, "user04", "C", addedAt);
+        insertInterest(conn, "user05", "C", addedAt);
+        insertInterest(conn, "user06", "C", addedAt);
+        insertInterest(conn, "user04", "D", addedAt);
+        insertInterest(conn, "user05", "D", addedAt);
+        insertInterest(conn, "user06", "D", addedAt);
+        insertInterest(conn, "user05", "E", addedAt);
+        insertInterest(conn, "user06", "E", addedAt);
+    }
 
 
     // 반복되는 insert를 짧게 쓰기 위한 도우미 메서드들 (모두 같은 conn = 같은 트랜잭션)
@@ -347,6 +390,28 @@ public class InitDBService {
             throw new IllegalStateException("먼저 등록되지 않은 회원입니다 : " + loginId);
         }
         return userId;
+    }
+
+    private void insertInterest(Connection conn, String loginId, String projectCode,
+                                String createdAt) throws SQLException {
+        Long userId = uid(loginId);
+        Long projectId = pid(projectCode);
+        if (interestDAO.exists(conn, userId, projectId)) {
+            return;
+        }
+        interestDAO.insert(conn, InterestDTO.builder()
+                .userId(userId)
+                .projectId(projectId)
+                .createdAt(dt(createdAt))
+                .build());
+    }
+
+    private Long pid(String projectCode) {
+        Long projectId = projectIds.get(projectCode);
+        if (projectId == null) {
+            throw new IllegalStateException("먼저 등록되지 않은 프로젝트입니다 : " + projectCode);
+        }
+        return projectId;
     }
 
     private void insertImage(Connection conn, Long projectId, String fileName, boolean thumbnail, int sortOrder,
