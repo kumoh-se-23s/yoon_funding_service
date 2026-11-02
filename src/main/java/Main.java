@@ -32,7 +32,7 @@ public class Main {
     private static final ProjectImageDAO projectImageDAO = new ProjectImageDAO();
     private static final RewardDAO rewardDAO = new RewardDAO();
     private static final ProjectApprovalDAO projectApprovalDAO = new ProjectApprovalDAO();
-    private static final FundingSupportDAO fundingSupportDAO = new FundingSupportDAO(dataSource);
+    private static final FundingSupportDAO fundingSupportDAO = new FundingSupportDAO();
     private static final ReviewDAO reviewDAO = new ReviewDAO();
 
     // Service는 DataSource를 받아 커넥션을 얻고 트랜잭션을 관리
