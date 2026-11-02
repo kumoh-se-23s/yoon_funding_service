@@ -11,6 +11,7 @@ import persistence.dto.*;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.List;
 
 @Getter
 @Setter
@@ -23,6 +24,15 @@ public class FundingSupportService {
     private final UserDAO suppoerterDAO;
     private final ProjectDAO projectDAO;
     private final RewardDAO rewardDAO;
+
+    public List<SupportDTO> findSupports(Long supporterId) {
+        try (Connection conn = ds.getConnection()) {
+            return fsDAO.findSupports(conn, supporterId);
+
+        } catch (SQLException e) {
+            throw new RuntimeException("후원 내역 조회 실패", e);
+        }
+    }
 
     public void support (SupportRequestDTO srd) {
         try (Connection conn = ds.getConnection()) {

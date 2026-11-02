@@ -20,4 +20,29 @@ public class ReviewDAO {
             return ProjectDAO.generatedKey(pstmt);
         }
     }
+
+    public boolean isSupported(Connection conn, Long supportUserId, Long projectId)
+            throws SQLException {
+
+        String sql = """
+            SELECT EXISTS (
+                SELECT 1
+                FROM funding_support fs
+                JOIN reward r
+                    ON fs.reward_id = r.reward_id
+                WHERE fs.user_id = ?
+                  AND r.project_id = ?
+            )
+            """;
+
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setLong(1, supportUserId);
+            pstmt.setLong(2, projectId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next() && rs.getBoolean(1);
+            }
+        }
+    }
+
 }

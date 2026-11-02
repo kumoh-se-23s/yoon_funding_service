@@ -1,6 +1,5 @@
 package persistence.dao;
 
-import persistence.dto.ProjectDTO;
 import persistence.dto.RewardDTO;
 
 import java.sql.*;
@@ -8,6 +7,22 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class RewardDAO {
+
+    public int update(Connection conn, int stockQuantity, int rewardId) throws SQLException {
+        String sql = """
+        UPDATE reward
+        SET stock_quantity = ?
+        WHERE reward_id = ?
+        """;
+
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, stockQuantity);
+            pstmt.setLong(2, rewardId);
+
+            return pstmt.executeUpdate();
+        }
+
+    }
 
     public List<RewardDTO> findAll(Connection conn, Long projectId) {
         String sql = """
