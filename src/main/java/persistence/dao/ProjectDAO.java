@@ -195,34 +195,83 @@ public class ProjectDAO {
     }
     */
 
-  
+
 
     // 프로젝트 조회 및 행 잠금
     public ProjectDTO findByIdForUpdate(Connection conn, Long projectId)
-          throws SQLException {
+            throws SQLException {
 
-      return selectById(conn, projectId, true);
+        return selectById(conn, projectId, true);
     }
 
+
+    // 일반 조회와 행 잠금 조회의 공통 처리
+    private ProjectDTO selectById(
+            Connection conn, Long projectId, boolean forUpdate)
+            throws SQLException {
+
+        String sql = "SELECT * FROM project WHERE project_id = ?"
+                + (forUpdate ? " FOR UPDATE" : "");
+
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, projectId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+
+                if (!rs.next()) {
+                    return null;
+                }
+
+                ProjectDTO project = new ProjectDTO();
+
+                project.setProjectId(rs.getLong("project_id"));
+                project.setUserId(rs.getLong("user_id"));
+                project.setTitle(rs.getString("title"));
+                project.setSubtitle(rs.getString("subtitle"));
+                project.setIntroduction(rs.getString("introduction"));
+                project.setItemInfo(rs.getString("item_info"));
+                project.setGoalAmount(rs.getLong("goal_amount"));
+                project.setCategory(rs.getInt("category"));
+                project.setProjectStatus(rs.getInt("project_status"));
+
+                project.setFundingStartAt(
+                        rs.getObject("funding_start_at", java.time.LocalDateTime.class));
+
+                project.setFundingEndAt(
+                        rs.getObject("funding_end_at", java.time.LocalDateTime.class));
+
+                project.setPaymentDueAt(
+                        rs.getObject("payment_due_at", java.time.LocalDateTime.class));
+
+                project.setDeliveryStartAt(
+                        rs.getObject("delivery_start_at", java.time.LocalDateTime.class));
+
+                return project;
+            }
+        }
+    }
+
+
     // 프로젝트 상태 변경
-    // 기존 상태와 일치할 때만 변경
+// 기존 상태와 일치할 때만 변경
     public int changeStatus(
-          Connection conn,
-          Long projectId,
-          int before,
-          int after) throws SQLException {
+            Connection conn,
+            Long projectId,
+            int before,
+            int after) throws SQLException {
 
-      String sql = "UPDATE project "
-              + "SET project_status = ? "
-              + "WHERE project_id = ? AND project_status = ?";
+        String sql = "UPDATE project "
+                + "SET project_status = ? "
+                + "WHERE project_id = ? AND project_status = ?";
 
-      try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-          pstmt.setInt(1, after);
-          pstmt.setLong(2, projectId);
-          pstmt.setInt(3, before);
+            pstmt.setInt(1, after);
+            pstmt.setLong(2, projectId);
+            pstmt.setInt(3, before);
 
-          return pstmt.executeUpdate();
-      }
+            return pstmt.executeUpdate();
+        }
     }
 }
