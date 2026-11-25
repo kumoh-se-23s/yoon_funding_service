@@ -97,7 +97,7 @@ private static final ProjectApprovalService projectApprovalService =
         // test07FilterProjects();         // SUPPORTER - 프로젝트 필터링
         // test08ApplyReward();            // SUPPORTER - 리워드 신청
         // test09RegisterReview();         // SUPPORTER - 리뷰 및 별점 등록
-        // test10ConcurrencyControl();     // SUPPORTER - 제공 가능 수량 동시성 제어
+         test10ConcurrencyControl();     // SUPPORTER - 제공 가능 수량 동시성 제어
     }
 
     private static void initDB() {
@@ -179,7 +179,7 @@ private static void test03RegisterReward() {
         System.out.println("[검사 3 성공]");
         System.out.println("project_id = " + projectId);
         System.out.println("reward_id = " + rewardIds);
-        System.out.println("신청 상태 = 0(심사대기)");
+        System.out.println("신청 상태 = awaiting(심사대기)");
 
         System.out.println("DB 확인 SQL:");
 
@@ -234,7 +234,7 @@ private static void test04ApproveProject() {
 
         System.out.println("[검사 4 준비 완료]");
         System.out.println("project_id = " + projectId);
-        System.out.println("프로젝트 상태 = 0(심사대기)");
+        System.out.println("심사 상태 = awaiting(심사대기)");
         System.out.println("관리자 계정으로 로그인하세요.");
 
     } catch (RuntimeException e) {
@@ -256,14 +256,14 @@ private static void test04ApproveProject() {
 
         System.out.println("[검사 4 성공]");
         System.out.println("project_id = " + projectId);
-        System.out.println("프로젝트 상태 = 1(승인)");
+        System.out.println("심사 상태 = approved(승인)");
 
         System.out.println("DB 확인 SQL:");
 
         System.out.println(
-                "SELECT project_id, project_status " +
-                "FROM project WHERE project_id = " +
-                projectId + ";"
+                "SELECT project_id, approval_status, progress_status " +
+                        "FROM project WHERE project_id = " +
+                        projectId + ";"
         );
 
         System.out.println(
