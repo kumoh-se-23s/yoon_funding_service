@@ -13,9 +13,9 @@ import java.sql.SQLException;
 
 /** 중간 DB 검사 4번 담당: 관리자만 프로젝트를 승인할 수 있다. */
 public class ProjectApprovalService {
-    private static final int ADMIN = 0;
-    private static final int PENDING = 0;
-    private static final int APPROVED = 1;
+    private static final String ADMIN = "admin";
+    private static final String PENDING = "awaiting";
+    private static final String APPROVED = "approved";
 
     private final DataSource dataSource;
     private final ProjectDAO projectDAO;
@@ -36,7 +36,7 @@ public class ProjectApprovalService {
      */
     public void approveProject(UserDTO loginUser, Long projectId) {
         if (loginUser == null || loginUser.getUserId() == null
-                || !Integer.valueOf(ADMIN).equals(loginUser.getRole())) {
+                || !ADMIN.equals(loginUser.getRole())) {
             throw new SecurityException("관리자로 로그인해야 프로젝트를 승인할 수 있습니다.");
         }
         if (projectId == null) throw new IllegalArgumentException("프로젝트 ID가 필요합니다.");
@@ -45,22 +45,29 @@ public class ProjectApprovalService {
             try {
                 conn.setAutoCommit(false);
                 ProjectDTO project = projectDAO.findByIdForUpdate(conn, projectId);
-                if (project == null || project.getProjectStatus() != PENDING) {
-                    throw new IllegalStateException("승인 대기 상태의 프로젝트가 아닙니다: " + projectId);
+                if (project == null
+                        || !PENDING.equals(project.getApprovalStatus())) {
+                    throw new IllegalStateException(
+                            "승인 대기 상태의 프로젝트가 아닙니다: " + projectId);
                 }
                 if (rewardDAO.countByProjectId(conn, projectId) == 0) {
                     throw new IllegalStateException("리워드 등록을 마치지 않은 프로젝트는 승인할 수 없습니다.");
                 }
                 ProjectApprovalDTO latest = approvalDAO.findLatestByProject(conn, projectId, true);
-                if (latest == null || latest.getProjectStatus() != PENDING) {
-                    throw new IllegalStateException("승인 대기 중인 심사 신청이 없습니다.");
+                if (latest == null
+                        || !PENDING.equals(latest.getProjectStatus())) {
+                    throw new IllegalStateException(
+                            "승인 대기 중인 심사 신청이 없습니다.");
                 }
 
                 if (approvalDAO.approvePending(conn, latest.getApprovalId()) != 1
-                        || projectDAO.changeStatus(conn, projectId, PENDING, APPROVED) != 1) {
+                        || projectDAO.changeStatus(
+                        conn, projectId, PENDING, APPROVED) != 1) {
                     throw new IllegalStateException("승인 상태 갱신 실패");
                 }
+
                 conn.commit();
+
             } catch (Exception e) {
                 conn.rollback();
                 throw new IllegalStateException("프로젝트 승인 실패 → 전체 rollback: " + e.getMessage(), e);

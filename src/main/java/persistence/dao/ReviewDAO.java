@@ -27,10 +27,12 @@ public class ReviewDAO {
         String sql = """
             SELECT EXISTS (
                 SELECT 1
-                FROM funding_support fs
+                FROM support fs
                 JOIN reward r
                     ON fs.reward_id = r.reward_id
                 WHERE fs.user_id = ?
+                  AND r.project_id = ?
+                  AND fs.cancel_status = FALSE
                   AND r.project_id = ?
             )
             """;
