@@ -52,33 +52,46 @@ public class ProjectService {
     }
 
     // 필터링 기능
-    public List<ProjectDTO> findByFilter(int category, int fundingStatus) throws SQLException{
-        if(fundingStatus < 0 || fundingStatus > 2){
+    public List<ProjectDTO> findByFilter(
+            int category, int fundingStatus) throws SQLException {
+
+        String[] categories = {
+                "tech", "fashion", "beauty", "food",
+                "living", "hobby", "pet", "culture"
+        };
+
+        if (category != -1
+                && (category < 1 || category > categories.length)) {
+            throw new IllegalArgumentException("잘못된 카테고리입니다.");
+        }
+
+        if (fundingStatus < 0 || fundingStatus > 2) {
             throw new IllegalArgumentException("잘못된 진행상태입니다.");
         }
 
-        try(Connection conn = dataSource.getConnection()){
+        try (Connection conn = dataSource.getConnection()) {
             List<ProjectDTO> projects = projectDAO.findAll(conn);
-            List<Long> soldOutIds = projectDAO.findSoldOutProjectIds(conn);
             List<ProjectDTO> filtered = new ArrayList<>();
 
-            LocalDateTime now = LocalDateTime.now();
+            for (ProjectDTO project : projects) {
+                boolean categoryMatches = category == -1
+                        || categories[category - 1].equals(project.getCategory());
 
-            for(ProjectDTO project : projects){
-                boolean categoryMatches = category == -1 || Integer.valueOf(category).equals(project.getCategory());
-                LocalDateTime start = project.getFundingStartAt();
-                LocalDateTime end = project.getFundingEndAt();
+                String progressStatus = project.getProgressStatus();
 
-                boolean started = start != null && end != null && !now.isBefore(start);
-                boolean closed = started && (now.isAfter(end) || soldOutIds.contains(project.getProjectId()));
-                boolean ongoing = started && (!closed);
+                boolean ongoing = "ongoing".equals(progressStatus);
+                boolean closed = "success".equals(progressStatus)
+                        || "fail".equals(progressStatus);
 
-                boolean statusMatches = (fundingStatus == 0 || (fundingStatus == 1 && ongoing) || (fundingStatus == 2 && closed));
+                boolean statusMatches = fundingStatus == 0
+                        || (fundingStatus == 1 && ongoing)
+                        || (fundingStatus == 2 && closed);
 
-                if(categoryMatches && statusMatches){
+                if (categoryMatches && statusMatches) {
                     filtered.add(project);
                 }
             }
+
             return filtered;
         }
     }
@@ -124,7 +137,7 @@ public class ProjectService {
             throw new IllegalArgumentException("로그인이 필요합니다.");
         }
 
-        if (!Integer.valueOf(2).equals(loginUser.getRole())) {
+        if (!"maker".equals(loginUser.getRole())) {
             throw new IllegalArgumentException("메이커만 이용할 수 있습니다.");
         }
     }

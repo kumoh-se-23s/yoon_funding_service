@@ -89,17 +89,16 @@ private static final ProjectApprovalService projectApprovalService =
         // 검사할 항목 하나만 주석 해제하여 실행
 
         // test01ViewFundingStatus();      // MAKER     - 프로젝트별 펀딩 현황 보기
-        //test02RegisterProject();        // MAKER     - 프로젝트 기본 정보 등록
+        // test02RegisterProject();        // MAKER     - 프로젝트 기본 정보 등록
         // test03RegisterReward();         // MAKER     - 리워드 등록 및 프로젝트 신청
-        //test04ApproveProject();         // ADMIN     - 프로젝트 등록 승인
-        //test05UpdateProfile();          // SUPPORTER - 개인정보 수정
+        // test04ApproveProject();         // ADMIN     - 프로젝트 등록 승인
+        // test05UpdateProfile();          // SUPPORTER - 개인정보 수정
         // test06ViewProjects();           // SUPPORTER - 프로젝트 보기
         // test07FilterProjects();         // SUPPORTER - 프로젝트 필터링
         // test08ApplyReward();            // SUPPORTER - 리워드 신청
         // test09RegisterReview();         // SUPPORTER - 리뷰 및 별점 등록
-        //test10ConcurrencyControl();     // SUPPORTER - 제공 가능 수량 동시성 제어
+        // test10ConcurrencyControl();     // SUPPORTER - 제공 가능 수량 동시성 제어
     }
-
 
     private static void initDB() {
         initDBService.initDB();
@@ -296,7 +295,7 @@ private static ProjectDTO demoProject(String title) {
             .introduction("메이커가 등록한 프로젝트입니다.")
             .itemInfo("검사용 기본 제품 정보")
             .goalAmount(300_000L)
-            .category(1)
+            .category("tech")
             .fundingStartAt(start)
             .fundingEndAt(end)
             .paymentDueAt(end.plusDays(2))
@@ -312,7 +311,7 @@ private static List<RewardDTO> demoRewards() {
                     .title("[검사용] 기본 리워드")
                     .content("기본 상품 1개")
                     .imgBlob(loadDemoImage("D_main.jpg"))
-                    .stockQuantity(10)
+                    .totalCount(10)
                     .price(30_000L)
                     .build(),
 
@@ -320,7 +319,7 @@ private static List<RewardDTO> demoRewards() {
                     .title("[검사용] 프리미엄 리워드")
                     .content("기본 상품 + 추가 구성품")
                     .imgBlob(loadDemoImage("D_reward_collector.jpg"))
-                    .stockQuantity(5)
+                    .totalCount(5)
                     .price(50_000L)
                     .build()
     );
@@ -426,7 +425,7 @@ private static byte[] loadDemoImage(String fileName) {
             SupportView supportView = new SupportView(
                     dataSource, loginUser, sc, projectView, projectService, rewardView, rewardService, fss
             );
-            fss.support(supportView.input());
+            supportView.supportView();
             System.out.println();
         } catch (Exception e) {
             e.printStackTrace();
@@ -462,13 +461,13 @@ private static byte[] loadDemoImage(String fileName) {
                 SupportView supportView = new SupportView(
                         dataSource, loginUser, sc, projectView, projectService, rewardView, rewardService, fss
                 );
-                fss.support(supportView.input());
+                supportView.supportView();
                 System.out.println();
             } catch (Exception e) {
-                e.printStackTrace();
+                System.out.println("시스템 오류로 후원 신청을 처리하지 못했습니다.");
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println("시스템 오류로 후원 신청을 처리하지 못했습니다.");
         } finally {
             logout();
         }

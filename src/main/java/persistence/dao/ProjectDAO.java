@@ -4,10 +4,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import lombok.RequiredArgsConstructor;
 import persistence.dto.ProjectDTO;
 
-import javax.sql.DataSource;
 import java.sql.*;
 
 import persistence.dto.RewardFundingStatusDTO;
@@ -47,8 +45,9 @@ public class ProjectDAO {
                         .introduction(rs.getString("introduction"))
                         .itemInfo(rs.getString("item_info"))
                         .goalAmount(rs.getLong("goal_amount"))
-                        .category(rs.getInt("category"))
-                        .projectStatus(rs.getInt("project_status"))
+                        .category(rs.getString("category"))
+                        .approvalStatus(rs.getString("approval_status"))
+                        .progressStatus(rs.getString("progress_status"))
                         .fundingStartAt(fundingStartAt != null ? fundingStartAt.toLocalDateTime() : null)
                         .fundingEndAt(fundingEndAt != null ? fundingEndAt.toLocalDateTime() : null)
                         .paymentDueAt(paymentDueAt != null ? paymentDueAt.toLocalDateTime() : null)
@@ -61,24 +60,43 @@ public class ProjectDAO {
     // 프로젝트 등록 후, AUTO_INCREMENT로 만들어진 project_id를 돌려줌
     // → 이 값을 이미지/리워드/심사 이력 insert에 그대로 넘겨서 FK로 사용
     public Long insert(Connection conn, ProjectDTO project) throws SQLException {
-        String sql = "INSERT INTO project(user_id, title, subtitle, introduction, item_info, goal_amount, category, "
-                + "project_status, funding_start_at, funding_end_at, payment_due_at, delivery_start_at) "
-                + "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = """
+        INSERT INTO project(
+            user_id, title, subtitle, introduction, item_info,
+            goal_amount, category, approval_status, progress_status,
+            funding_start_at, funding_end_at,
+            payment_due_at, delivery_start_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """;
 
-        // RETURN_GENERATED_KEYS : insert 후 DB가 만든 PK를 받아오겠다는 옵션
-        try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        String approvalStatus = project.getApprovalStatus();
+        String progressStatus = project.getProgressStatus();
+
+        if (approvalStatus == null) {
+            approvalStatus = "awaiting";
+        }
+
+        if (progressStatus == null) {
+            progressStatus = "ready";
+        }
+
+        try (PreparedStatement pstmt = conn.prepareStatement(
+                sql, Statement.RETURN_GENERATED_KEYS)) {
+
             pstmt.setLong(1, project.getUserId());
             pstmt.setString(2, project.getTitle());
-            pstmt.setString(3, project.getSubtitle());       // null 가능
+            pstmt.setString(3, project.getSubtitle());
             pstmt.setString(4, project.getIntroduction());
-            pstmt.setString(5, project.getItemInfo());       // null 가능
+            pstmt.setString(5, project.getItemInfo());
             pstmt.setLong(6, project.getGoalAmount());
-            pstmt.setInt(7, project.getCategory());
-            pstmt.setInt(8, project.getProjectStatus());
-            pstmt.setObject(9, project.getFundingStartAt());  // LocalDateTime, null 가능
-            pstmt.setObject(10, project.getFundingEndAt());
-            pstmt.setObject(11, project.getPaymentDueAt());
-            pstmt.setObject(12, project.getDeliveryStartAt());
+            pstmt.setString(7, project.getCategory());
+            pstmt.setString(8, approvalStatus);
+            pstmt.setString(9, progressStatus);
+            pstmt.setObject(10, project.getFundingStartAt());
+            pstmt.setObject(11, project.getFundingEndAt());
+            pstmt.setObject(12, project.getPaymentDueAt());
+            pstmt.setObject(13, project.getDeliveryStartAt());
 
             pstmt.executeUpdate();
             return generatedKey(pstmt);
@@ -96,11 +114,11 @@ public class ProjectDAO {
         String sql = """
                 SELECT project_id, user_id, title, subtitle,
                         introduction, item_info, goal_amount,
-                        category, project_status,
+                        category, approval_status, progress_status,
                         funding_start_at, funding_end_at,
                         payment_due_at, delivery_start_at
                 FROM project
-                WHERE project_status = 1
+                WHERE approval_status = 'approved'
                 ORDER BY project_id DESC
                 """; // project_id는 Auto Increment 속성이므로, 등록한 최신순으로 보여줌. DESC
         List<ProjectDTO> projects = new ArrayList<>();
@@ -118,9 +136,9 @@ public class ProjectDAO {
                 project.setIntroduction(rs.getString("introduction"));
                 project.setItemInfo(rs.getString("item_info"));
                 project.setGoalAmount(rs.getLong("goal_amount"));
-                project.setCategory(rs.getInt("category"));
-                project.setProjectStatus(rs.getInt("project_status"));
-
+                project.setCategory(rs.getString("category"));
+                project.setApprovalStatus(rs.getString("approval_status"));
+                project.setProgressStatus(rs.getString("progress_status"));
                 project.setFundingStartAt(rs.getObject("funding_start_at", LocalDateTime.class));
                 project.setFundingEndAt(rs.getObject("funding_end_at", LocalDateTime.class));
                 project.setPaymentDueAt(rs.getObject("payment_due_at", LocalDateTime.class));
@@ -140,12 +158,12 @@ public class ProjectDAO {
             FROM (
                 SELECT r.project_id,
                        r.reward_id,
-                       r.stock_quantity - COUNT(fs.support_id) AS remaining_quantity
+                       r.total_count - COALESCE(SUM(fs.reward_count), 0) AS remaining_quantity
                 FROM reward r
-                LEFT JOIN funding_support fs
+                LEFT JOIN support fs
                     ON fs.reward_id = r.reward_id
                     AND fs.cancel_status = FALSE
-                GROUP BY r.project_id, r.reward_id, r.stock_quantity
+                GROUP BY r.project_id, r.reward_id, r.total_count
             ) remaining
             GROUP BY remaining.project_id
             HAVING MAX(remaining.remaining_quantity) <= 0
@@ -170,7 +188,7 @@ public class ProjectDAO {
         String sql = """
             SELECT project_id, user_id, title, subtitle,
                    introduction, item_info, goal_amount,
-                   category, project_status,
+                   category, approval_status, progress_status,
                    funding_start_at, funding_end_at,
                    payment_due_at, delivery_start_at
             FROM project
@@ -194,9 +212,9 @@ public class ProjectDAO {
                     project.setIntroduction(rs.getString("introduction"));
                     project.setItemInfo(rs.getString("item_info"));
                     project.setGoalAmount(rs.getLong("goal_amount"));
-                    project.setCategory(rs.getInt("category"));
-                    project.setProjectStatus(rs.getInt("project_status"));
-
+                    project.setCategory(rs.getString("category"));
+                    project.setApprovalStatus(rs.getString("approval_status"));
+                    project.setProgressStatus(rs.getString("progress_status"));
                     project.setFundingStartAt(
                             rs.getObject("funding_start_at", LocalDateTime.class));
                     project.setFundingEndAt(
@@ -223,19 +241,19 @@ public class ProjectDAO {
             SELECT r.reward_id,
                    r.title,
                    r.price,
-                   r.stock_quantity,
-                   COUNT(fs.support_id) AS applied_quantity,
-                   r.stock_quantity - COUNT(fs.support_id) AS remaining_quantity,
-                   r.price * COUNT(fs.support_id) AS funded_amount
+                   r.total_count,
+                   COALESCE(SUM(fs.reward_count), 0) AS applied_quantity,
+                   r.total_count - COALESCE(SUM(fs.reward_count), 0) AS remaining_quantity,
+                   r.price * COALESCE(SUM(fs.reward_count), 0) AS funded_amount
             FROM reward r
             JOIN project p
                 ON p.project_id = r.project_id
-            LEFT JOIN funding_support fs
+            LEFT JOIN support fs
                 ON fs.reward_id = r.reward_id
                 AND fs.cancel_status = FALSE
             WHERE r.project_id = ?
               AND p.user_id = ?
-            GROUP BY r.reward_id, r.title, r.price, r.stock_quantity
+            GROUP BY r.reward_id, r.title, r.price, r.total_count
             ORDER BY r.reward_id
             """;
 
@@ -252,8 +270,7 @@ public class ProjectDAO {
                     reward.setRewardId(rs.getLong("reward_id"));
                     reward.setTitle(rs.getString("title"));
                     reward.setPrice(rs.getLong("price"));
-                    reward.setStockQuantity(rs.getInt("stock_quantity"));
-                    reward.setAppliedQuantity(rs.getLong("applied_quantity"));
+                    reward.setTotalCount(rs.getInt("total_count"));                    reward.setAppliedQuantity(rs.getLong("applied_quantity"));
                     reward.setRemainingQuantity(rs.getLong("remaining_quantity"));
                     reward.setFundedAmount(rs.getLong("funded_amount"));
 
@@ -274,12 +291,13 @@ public class ProjectDAO {
                    u.name AS supporter_name,
                    u.nickname AS supporter_nickname,
                    r.title AS reward_title,
-                   fs.supported_at,
+                   fs.reward_count,
+                   fs.processed_at,
                    fs.recipient_name,
                    fs.recipient_contact,
                    fs.delivery_address,
                    fs.delivery_detail_address
-            FROM funding_support fs
+            FROM support fs
             JOIN reward r
                 ON r.reward_id = fs.reward_id
             JOIN project p
@@ -289,7 +307,7 @@ public class ProjectDAO {
             WHERE p.project_id = ?
               AND p.user_id = ?
               AND fs.cancel_status = FALSE
-            ORDER BY fs.supported_at DESC, fs.support_id DESC
+            ORDER BY fs.processed_at DESC, fs.support_id DESC
             """;
 
         List<ProjectSupporterDTO> supporters = new ArrayList<>();
@@ -307,7 +325,8 @@ public class ProjectDAO {
                     supporter.setSupporterName(rs.getString("supporter_name"));
                     supporter.setSupporterNickname(rs.getString("supporter_nickname"));
                     supporter.setRewardTitle(rs.getString("reward_title"));
-                    supporter.setSupportedAt(rs.getObject("supported_at", LocalDateTime.class));
+                    supporter.setRewardCount(rs.getInt("reward_count"));
+                    supporter.setProcessedAt(rs.getObject("processed_at", LocalDateTime.class));
                     supporter.setRecipientName(rs.getString("recipient_name"));
                     supporter.setRecipientContact(rs.getString("recipient_contact"));
                     supporter.setDeliveryAddress(rs.getString("delivery_address"));
@@ -392,9 +411,9 @@ public class ProjectDAO {
                 project.setIntroduction(rs.getString("introduction"));
                 project.setItemInfo(rs.getString("item_info"));
                 project.setGoalAmount(rs.getLong("goal_amount"));
-                project.setCategory(rs.getInt("category"));
-                project.setProjectStatus(rs.getInt("project_status"));
-
+                project.setCategory(rs.getString("category"));
+                project.setApprovalStatus(rs.getString("approval_status"));
+                project.setProgressStatus(rs.getString("progress_status"));
                 project.setFundingStartAt(
                         rs.getObject("funding_start_at", java.time.LocalDateTime.class));
 
@@ -418,18 +437,20 @@ public class ProjectDAO {
     public int changeStatus(
             Connection conn,
             Long projectId,
-            int before,
-            int after) throws SQLException {
+            String before,
+            String after) throws SQLException {
 
-        String sql = "UPDATE project "
-                + "SET project_status = ? "
-                + "WHERE project_id = ? AND project_status = ?";
+        String sql = """
+        UPDATE project
+        SET approval_status = ?
+        WHERE project_id = ?
+          AND approval_status = ?
+        """;
 
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setInt(1, after);
+            pstmt.setString(1, after);
             pstmt.setLong(2, projectId);
-            pstmt.setInt(3, before);
+            pstmt.setString(3, before);
 
             return pstmt.executeUpdate();
         }

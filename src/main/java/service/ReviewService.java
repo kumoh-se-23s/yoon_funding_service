@@ -36,6 +36,6 @@ public class ReviewService {
     }
 
     public boolean isSupporter(UserDTO loginUser) {
-        return loginUser.getRole() == 1;
+        return "supporter".equals(loginUser.getRole());
     }
 }

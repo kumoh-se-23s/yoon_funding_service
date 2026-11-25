@@ -21,7 +21,7 @@ public class FundingSupportDAO {
                 fs.reward_id,
                 r.title AS reward_title,
                 p.title AS project_title
-            FROM funding_support fs
+            FROM support fs
             JOIN reward r
                 ON fs.reward_id = r.reward_id
             JOIN project p
@@ -55,20 +55,34 @@ public class FundingSupportDAO {
     }
 
     // 후원 등록 후 생성된 support_id 반환 → 리뷰(review) insert에 사용
-    public Long insert(Connection conn, FundingSupportDTO support) throws SQLException {
-        String sql = "INSERT INTO funding_support(reward_id, user_id, supported_at, recipient_name, recipient_contact, "
-                + "delivery_address, delivery_detail_address, cancel_status) "
-                + "VALUES(?, ?, COALESCE(?, NOW()), ?, ?, ?, ?, ?)";
+    public Long insert(Connection conn, FundingSupportDTO support)
+            throws SQLException {
 
-        try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        if (support.getRewardCount() < 1) {
+            throw new IllegalArgumentException("신청 수량은 1개 이상이어야 합니다.");
+        }
+
+        String sql = """
+            INSERT INTO support(
+                reward_id, user_id, reward_count, processed_at,
+                recipient_name, recipient_contact,
+                delivery_address, delivery_detail_address, cancel_status
+            )
+            VALUES (?, ?, ?, COALESCE(?, NOW()), ?, ?, ?, ?, ?)
+            """;
+
+        try (PreparedStatement pstmt = conn.prepareStatement(
+                sql, Statement.RETURN_GENERATED_KEYS)) {
+
             pstmt.setLong(1, support.getRewardId());
             pstmt.setLong(2, support.getUserId());
-            pstmt.setObject(3, support.getSupportedAt());
-            pstmt.setString(4, support.getRecipientName());
-            pstmt.setString(5, support.getRecipientContact());
-            pstmt.setString(6, support.getDeliveryAddress());
-            pstmt.setString(7, support.getDeliveryDetailAddress());
-            pstmt.setBoolean(8, support.isCancelStatus());
+            pstmt.setInt(3, support.getRewardCount());
+            pstmt.setObject(4, support.getProcessedAt());
+            pstmt.setString(5, support.getRecipientName());
+            pstmt.setString(6, support.getRecipientContact());
+            pstmt.setString(7, support.getDeliveryAddress());
+            pstmt.setString(8, support.getDeliveryDetailAddress());
+            pstmt.setBoolean(9, support.isCancelStatus());
 
             pstmt.executeUpdate();
             return ProjectDAO.generatedKey(pstmt);
@@ -77,13 +91,14 @@ public class FundingSupportDAO {
 
     public int getRemainStock(Connection conn, Long rewardId) throws RuntimeException{
         String sql = """
-            SELECT r.stock_quantity - COUNT(fs.user_id)
+            SELECT r.total_count
+                       - COALESCE(SUM(fs.reward_count), 0) AS remaining_quantity
             FROM reward r
-            JOIN funding_support fs
-                ON r.reward_id = fs.reward_id
-                AND fs.cancel_status = false
+            LEFT JOIN support fs
+                ON fs.reward_id = r.reward_id
+                AND fs.cancel_status = FALSE
             WHERE r.reward_id = ?
-            GROUP BY r.reward_id
+            GROUP BY r.reward_id, r.total_count
             """;
 
         int remainStock = -1;

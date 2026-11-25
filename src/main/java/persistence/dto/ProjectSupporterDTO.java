@@ -13,7 +13,8 @@ public class ProjectSupporterDTO {
     private String supporterName;
     private String supporterNickname;
     private String rewardTitle;
-    private LocalDateTime supportedAt;
+    private int rewardCount;
+    private LocalDateTime processedAt;
     private String recipientName;
     private String recipientContact;
     private String deliveryAddress;

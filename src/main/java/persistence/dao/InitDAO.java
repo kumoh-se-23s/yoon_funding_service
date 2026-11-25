@@ -12,7 +12,7 @@ public class InitDAO {
     // TRUNCATE는 AUTO_INCREMENT도 1로 되돌려서, 다시 넣으면 PK가 항상 1, 2, 3 ... 으로 들어감
     // ※ TRUNCATE는 DDL이라 실행 즉시 자동 커밋됨(rollback 불가) → Service에서 트랜잭션 시작 "전"에 호출
     private static final String[] TABLES = {
-            "review", "funding_support", "project_approval", "reward",
+            "review", "support", "project_approval", "reward", // funding_support -> support로 바꿈.
             "interest", "project_image", "project", "users"
     };
 
