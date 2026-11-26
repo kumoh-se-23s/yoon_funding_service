@@ -12,8 +12,6 @@ import persistence.dto.RewardFundingStatusDTO;
 import persistence.dto.ProjectSupporterDTO;
 
 public class ProjectDAO {
-
-
     public ProjectDTO findById(Connection conn, Long projectId) throws SQLException {
 
         String sql = """
@@ -182,24 +180,41 @@ public class ProjectDAO {
         return projectIds;
     }
 
-    // 메이커 본인의 프로젝트들 조회
-    // makerId -> 로그인한 회원의 userId
-    public List<ProjectDTO> findByMaker(Connection conn, Long makerId) throws SQLException {
+    // 메이커 본인의 전체 프로젝트 목록 조회
+    public List<ProjectDTO> findByMaker(
+            Connection conn, Long makerId) throws SQLException {
+        return findByMaker(conn, makerId, null);
+    }
+
+    // 메이커 본인의 프로젝트 조회
+    // projectId가 null이면 전체 목록, 값이 있으면 해당 프로젝트만 조회
+    public List<ProjectDTO> findByMaker(
+            Connection conn, Long makerId, Long projectId) throws SQLException {
+
         String sql = """
-            SELECT project_id, user_id, title, subtitle,
-                   introduction, item_info, goal_amount,
-                   category, approval_status, progress_status,
-                   funding_start_at, funding_end_at,
-                   payment_due_at, delivery_start_at
-            FROM project
-            WHERE user_id = ?
-            ORDER BY project_id DESC
-            """; // 여기서도 등록 최신순으로 조회함.
+        SELECT project_id, user_id, title, subtitle,
+               introduction, item_info, goal_amount,
+               category, approval_status, progress_status,
+               funding_start_at, funding_end_at,
+               payment_due_at, delivery_start_at
+        FROM project
+        WHERE user_id = ?
+        """;
+
+        if (projectId != null) {
+            sql += " AND project_id = ?";
+        }
+
+        sql += " ORDER BY project_id DESC";
 
         List<ProjectDTO> projects = new ArrayList<>();
 
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setLong(1, makerId);
+
+            if (projectId != null) {
+                pstmt.setLong(2, projectId);
+            }
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
@@ -228,9 +243,6 @@ public class ProjectDAO {
                 }
             }
         }
-
-
-
         return projects;
     }
 
@@ -339,42 +351,6 @@ public class ProjectDAO {
 
         return supporters;
     }
-    /*
-    public Long getFundedAmount(Connection conn, ProjectDTO old) {
-        String sql = """
-
-                SELECT
-                    COALESCE(SUM(r.price), 0) AS current_amount
-                FROM reward r
-                JOIN funding_support fs
-                    ON r.reward_id = fs.reward_id
-                WHERE r.project_id = ?
-                GROUP BY r.project_id;
-            """;
-
-        int remainStock = -1;
-        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setLong(1, fsDTO.getRewardId());
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    remainStock =  rs.getInt(1);
-                }
-            }
-
-            if(remainStock < 0) {
-                throw new IllegalStateException("유효하지 않은 후원자 수");
-            }
-
-            return remainStock;
-        } catch (SQLException e) {
-            System.err.println("후원 신청자 수 조회 실패");
-            throw new RuntimeException(e);
-        }
-    }
-    */
-
-
 
     // 프로젝트 조회 및 행 잠금
     public ProjectDTO findByIdForUpdate(Connection conn, Long projectId)
