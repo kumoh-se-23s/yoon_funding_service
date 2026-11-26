@@ -9,7 +9,6 @@ import java.sql.SQLException;
 import exception.DataAccessException;
 
 import java.util.List;
-import java.util.ArrayList;
 
 import persistence.dto.UserDTO;
 import persistence.dto.RewardFundingStatusDTO;
@@ -54,7 +53,7 @@ public class ProjectService {
         }
     }
 
-    // 필터링 기능
+    // 카테고리와 진행 상태에 맞는 프로젝트 조회
     public List<ProjectDTO> findByFilter(
             int category, int fundingStatus) {
 
@@ -72,30 +71,12 @@ public class ProjectService {
             throw new IllegalArgumentException("잘못된 진행상태입니다.");
         }
 
+        String categoryValue =
+                category == -1 ? null : categories[category - 1];
+
         try (Connection conn = dataSource.getConnection()) {
-            List<ProjectDTO> projects = projectDAO.findAll(conn);
-            List<ProjectDTO> filtered = new ArrayList<>();
-
-            for (ProjectDTO project : projects) {
-                boolean categoryMatches = category == -1
-                        || categories[category - 1].equals(project.getCategory());
-
-                String progressStatus = project.getProgressStatus();
-
-                boolean ongoing = "ongoing".equals(progressStatus);
-                boolean closed = "success".equals(progressStatus)
-                        || "fail".equals(progressStatus);
-
-                boolean statusMatches = fundingStatus == 0
-                        || (fundingStatus == 1 && ongoing)
-                        || (fundingStatus == 2 && closed);
-
-                if (categoryMatches && statusMatches) {
-                    filtered.add(project);
-                }
-            }
-
-            return filtered;
+            return projectDAO.findByFilter(
+                    conn, categoryValue, fundingStatus);
         } catch (SQLException e) {
             throw new DataAccessException("프로젝트 필터 조회 실패", e);
         }
@@ -169,24 +150,52 @@ public class ProjectService {
         return projects.get(0);
     }
 
-    // 메이커 본인 프로젝트의 펀딩 현황을 한 번에 조회
+    // 메이커 본인 프로젝트의 펀딩 현황을 "같은 시점" 기준으로 조회
     public ProjectFundingStatusDTO findFundingStatus(UserDTO loginUser, Long projectId) {
-
         validateMaker(loginUser);
 
         try (Connection conn = dataSource.getConnection()) {
-            ProjectDTO project = validateProjectOwner(
-                    conn, projectId, loginUser.getUserId());
+            // 풀에서 빌린 연결의 기존 설정 보관
+            boolean oldAutoCommit = conn.getAutoCommit();
+            boolean oldReadOnly = conn.isReadOnly();
+            int oldIsolation = conn.getTransactionIsolation();
 
-            List<RewardFundingStatusDTO> rewards = projectDAO.findRewardFundingStatus(
-                            conn, projectId, loginUser.getUserId());
+            try {
+                // 조회용 설정을 적용한 뒤 트랜잭션 시작
+                conn.setTransactionIsolation(
+                        Connection.TRANSACTION_REPEATABLE_READ);
+                conn.setReadOnly(true);
+                conn.setAutoCommit(false);
 
-            List<ProjectSupporterDTO> supporters =
-                    projectDAO.findProjectSupporters(
-                            conn, projectId, loginUser.getUserId());
+                // 첫 SELECT할 때 조회 기준 시점 지정
+                ProjectDTO project = validateProjectOwner(conn, projectId, loginUser.getUserId());
 
-            return new ProjectFundingStatusDTO(
-                    project, rewards, supporters);
+                List<RewardFundingStatusDTO> rewards =
+                        projectDAO.findRewardFundingStatus(conn, projectId, loginUser.getUserId());
+
+                List<ProjectSupporterDTO> supporters =
+                        projectDAO.findProjectSupporters(conn, projectId, loginUser.getUserId());
+
+                ProjectFundingStatusDTO result =
+                        new ProjectFundingStatusDTO(project, rewards, supporters);
+
+                conn.commit();
+                return result;
+
+            } catch (SQLException | RuntimeException e) {
+                try {
+                    conn.rollback();
+                } catch (SQLException rollbackError) {
+                    // rollback 실패하면 원래 오류에 함께 기록
+                    e.addSuppressed(rollbackError);
+                }
+                throw e;
+            } finally {
+                // 연결을 풀에 반환하기 전에 기존 설정 복구
+                conn.setAutoCommit(oldAutoCommit);
+                conn.setReadOnly(oldReadOnly);
+                conn.setTransactionIsolation(oldIsolation);
+            }
 
         } catch (SQLException e) {
             throw new DataAccessException("프로젝트 펀딩 현황 조회 실패", e);
