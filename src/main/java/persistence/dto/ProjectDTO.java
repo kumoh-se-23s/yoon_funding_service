@@ -28,5 +28,6 @@ public class ProjectDTO {
     private LocalDateTime deliveryStartAt;
 
     private Long fundedAmount;
+    private Long likeCount;
 
 }
