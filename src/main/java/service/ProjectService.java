@@ -34,14 +34,15 @@ public class ProjectService {
         }
     }
 
-    // 승인된 프로젝트 목록 조회
+    // 기존 호출은 최신순으로 조회
     public List<ProjectDTO> findAll() {
-        // 풀에서 연결 빌리고 try 끝나면 반환
-        try (Connection conn = dataSource.getConnection()) {
-            return projectDAO.findAll(conn);
-        } catch (SQLException e) {
-            throw new DataAccessException("프로젝트 목록 조회 실패", e);
-        }
+        return findAll(1);
+    }
+
+    // 전체 목록에 정렬 적용
+    // sort: 1 최신순, 2 모집금액순, 3 마감임박순, 4 좋아요순
+    public List<ProjectDTO> findAll(int sort) {
+        return findByFilter(-1, 0, sort);
     }
 
     // 품절 상태의 프로젝트 id 반환
@@ -53,9 +54,16 @@ public class ProjectService {
         }
     }
 
-    // 카테고리와 진행 상태에 맞는 프로젝트 조회
+    // 기존 필터 조회 호출은 최신순 유지
     public List<ProjectDTO> findByFilter(
             int category, int fundingStatus) {
+
+        return findByFilter(category, fundingStatus, 1);
+    }
+
+    // 카테고리, 진행 상태 필터와 정렬을 함께 적용
+    public List<ProjectDTO> findByFilter(
+            int category, int fundingStatus, int sort) {
 
         String[] categories = {
                 "tech", "fashion", "beauty", "food",
@@ -71,14 +79,16 @@ public class ProjectService {
             throw new IllegalArgumentException("잘못된 진행상태입니다.");
         }
 
-        String categoryValue =
-                category == -1 ? null : categories[category - 1];
+        if (sort < 1 || sort > 4) {
+            throw new IllegalArgumentException("잘못된 정렬 기준입니다.");
+        }
+
+        String categoryValue = category == -1 ? null : categories[category - 1];
 
         try (Connection conn = dataSource.getConnection()) {
-            return projectDAO.findByFilter(
-                    conn, categoryValue, fundingStatus);
+            return projectDAO.findByFilter(conn, categoryValue, fundingStatus, sort);
         } catch (SQLException e) {
-            throw new DataAccessException("프로젝트 필터 조회 실패", e);
+            throw new DataAccessException("프로젝트 목록 조회 실패", e);
         }
     }
 

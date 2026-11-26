@@ -36,10 +36,10 @@ public class ProjectView {
             }
 
             System.out.printf("목표 금액: %,d원%n", project.getGoalAmount());
+            System.out.printf("모집 금액: %,d원%n", project.getFundedAmount());
+            System.out.printf("좋아요 수: %,d개%n", project.getLikeCount());
             boolean soldOut = soldOutProjectIds.contains(project.getProjectId());
-            System.out.println("심사 상태: "
-                    + ApprovalStatus.fromDbValue(
-                    project.getApprovalStatus()).getDisplayName());
+            System.out.println("심사 상태: " + ApprovalStatus.fromDbValue(project.getApprovalStatus()).getDisplayName());
             System.out.println("진행 상태: " + getFundingStatus(project, soldOut));
             System.out.println("펀딩 시작일: " + formatDate(project.getFundingStartAt()));
             System.out.println("펀딩 종료일: " + formatDate(project.getFundingEndAt()));
@@ -97,6 +97,36 @@ public class ProjectView {
             return new int[]{category, fundingStatus};
         } catch(NumberFormatException e){
             System.out.println("번호는 정수로 입력해주세요.");
+            return null;
+        }
+    }
+
+    // Enter만 입력하면 최신순, 입력 종료나 잘못된 선택이면 null
+    public Integer inputSort(Scanner scanner) {
+        System.out.println("정렬: 1 최신순 / 2 모집금액순 / 3 마감임박순 / 4 좋아요순");
+        System.out.print("정렬 번호 입력 (Enter: 최신순): ");
+
+        if (!scanner.hasNextLine()) {
+            return null;
+        }
+
+        String input = scanner.nextLine().trim();
+
+        if (input.isEmpty()) {
+            return 1;
+        }
+
+        try {
+            int sort = Integer.parseInt(input);
+
+            if (sort < 1 || sort > 4) {
+                System.out.println("정렬 번호는 1~4 중에서 선택해주세요.");
+                return null;
+            }
+
+            return sort;
+        } catch (NumberFormatException e) {
+            System.out.println("정렬 번호는 정수로 입력해주세요.");
             return null;
         }
     }

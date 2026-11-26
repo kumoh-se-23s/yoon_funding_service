@@ -80,29 +80,68 @@ public class ProjectDAO {
     // fundingStatus: 0은 전체, 1은 진행 중, 2는 마감
     public List<ProjectDTO> findByFilter(
             Connection conn, String category, int fundingStatus)
+        throws SQLException {
+        return findByFilter(conn, category, fundingStatus, 1);
+    }
+
+    // category: null이면 전체 카테고리
+    // fundingStatus: 0 전체, 1 진행 중, 2 마감
+    // sort: 1 최신순, 2 모집금액순, 3 마감임박순, 4 좋아요순
+    public List<ProjectDTO> findByFilter(
+            Connection conn, String category, int fundingStatus, int sort)
             throws SQLException {
 
+        // 사용자 입력을 직접 붙이지 않고 정해진 정렬 구문만 선택
+        String orderBy = switch (sort) {
+            case 1 -> "p.project_id DESC";
+            case 2 -> "funded_amount DESC, p.project_id DESC";
+            case 3 -> """
+                CASE WHEN p.progress_status = 'ongoing'
+                          AND p.funding_end_at > CURRENT_TIMESTAMP
+                     THEN 0 ELSE 1 END,
+                CASE WHEN p.funding_end_at IS NULL THEN 1 ELSE 0 END,
+                p.funding_end_at ASC, p.project_id DESC
+                """;
+            case 4 -> "like_count DESC, p.project_id DESC";
+            default -> throw new IllegalArgumentException("잘못된 정렬 기준입니다.");
+        };
+
+        // 후원금과 좋아요를 각각 집계해서 연결
         String sql = """
-        SELECT project_id, user_id, title, subtitle,
-               introduction, item_info, goal_amount,
-               category, approval_status, progress_status,
-               funding_start_at, funding_end_at,
-               payment_due_at, delivery_start_at
-        FROM project
-        WHERE approval_status = ?
+        SELECT p.project_id, p.user_id, p.title, p.subtitle,
+               p.introduction, p.item_info, p.goal_amount,
+               p.category, p.approval_status, p.progress_status,
+               p.funding_start_at, p.funding_end_at,
+               p.payment_due_at, p.delivery_start_at,
+               COALESCE(funding.funded_amount, 0) AS funded_amount,
+               COALESCE(likes.like_count, 0) AS like_count
+        FROM project p
+        LEFT JOIN (
+            SELECT r.project_id, SUM(r.price * s.reward_count) AS funded_amount
+            FROM reward r
+            JOIN support s ON s.reward_id = r.reward_id
+            WHERE s.cancel_status = FALSE
+            GROUP BY r.project_id
+        ) funding ON funding.project_id = p.project_id
+        LEFT JOIN (
+            SELECT project_id, COUNT(*) AS like_count
+            FROM interest
+            GROUP BY project_id
+        ) likes ON likes.project_id = p.project_id
+        WHERE p.approval_status = ?
         """;
 
         if (category != null) {
-            sql += " AND category = ?";
+            sql += " AND p.category = ?";
         }
 
         if (fundingStatus == 1) {
-            sql += " AND progress_status = ?";
+            sql += " AND p.progress_status = ?";
         } else if (fundingStatus == 2) {
-            sql += " AND progress_status IN (?, ?)";
+            sql += " AND p.progress_status IN (?, ?)";
         }
 
-        sql += " ORDER BY project_id DESC";
+        sql += " ORDER BY " + orderBy;
 
         List<ProjectDTO> projects = new ArrayList<>();
 
@@ -124,7 +163,10 @@ public class ProjectDAO {
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
-                    projects.add(mapProject(rs));
+                    ProjectDTO project = mapProject(rs);
+                    project.setFundedAmount(rs.getLong("funded_amount"));
+                    project.setLikeCount(rs.getLong("like_count"));
+                    projects.add(project);
                 }
             }
         }
