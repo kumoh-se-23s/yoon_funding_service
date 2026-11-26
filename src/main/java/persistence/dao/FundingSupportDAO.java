@@ -1,10 +1,8 @@
 package persistence.dao;
 
-import lombok.RequiredArgsConstructor;
 import persistence.dto.FundingSupportDTO;
 import persistence.dto.SupportDTO;
 
-import javax.sql.DataSource;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;

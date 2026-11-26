@@ -1,13 +1,8 @@
 package view;
 
-import domain.FundingSupport;
-import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import persistence.dao.FundingSupportDAO;
-import persistence.dao.ProjectDAO;
-import persistence.dao.RewardDAO;
-import persistence.dao.UserDAO;
+
 import persistence.dto.ProjectDTO;
 import persistence.dto.RewardDTO;
 import persistence.dto.SupportRequestDTO;
@@ -18,7 +13,7 @@ import service.RewardService;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
-import java.sql.SQLException;
+import exception.DataAccessException;
 import java.util.Scanner;
 import exception.SupportRejectedException;
 
@@ -66,6 +61,11 @@ public class SupportView {
             } catch (java.util.InputMismatchException e) {
                 sc.nextLine();
                 System.out.println("[안내] 번호는 정수로 입력해주세요.");
+
+            } catch (DataAccessException e) {
+                System.out.println(
+                        "프로젝트 조회 중 오류가 발생하여 후원 신청을 종료합니다.");
+                return;
             }
         }
     }
@@ -162,14 +162,10 @@ public class SupportView {
     }
 
     private void viewProjects() {
-        try {
-            projectView.printProjects(
-                    projectService.findAll(),
-                    projectService.findSoldOutProjectIds()
-            );
-        } catch (SQLException e) {
-            System.out.println("프로젝트 조회 실패: " + e.getMessage());
-        }
+        projectView.printProjects(
+                projectService.findAll(),
+                projectService.findSoldOutProjectIds()
+        );
     }
 
     private RewardDTO rewardInput(Long projectId) {
