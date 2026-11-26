@@ -187,6 +187,7 @@ public class ProjectView {
                     + " (" + supporter.getSupporterNickname() + ")");
             System.out.println("회원 번호: " + supporter.getUserId());
             System.out.println("신청 리워드: " + supporter.getRewardTitle());
+            System.out.printf("신청 수량: %,d개%n", supporter.getRewardCount());
             System.out.println("후원 일시: " + formatDate(supporter.getProcessedAt()));
             System.out.println("수령인: " + supporter.getRecipientName());
             System.out.println("수령인 연락처: " + supporter.getRecipientContact());

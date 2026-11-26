@@ -12,47 +12,10 @@ import persistence.dto.RewardFundingStatusDTO;
 import persistence.dto.ProjectSupporterDTO;
 
 public class ProjectDAO {
-    public ProjectDTO findById(Connection conn, Long projectId) throws SQLException {
-
-        String sql = """
-            SELECT *
-            FROM project
-            WHERE project_id = ?
-            """;
-
-        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setLong(1, projectId);
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-
-                if (!rs.next()) {
-                    return null;
-                }
-
-                Timestamp fundingStartAt = rs.getTimestamp("funding_start_at");
-                Timestamp fundingEndAt = rs.getTimestamp("funding_end_at");
-                Timestamp paymentDueAt = rs.getTimestamp("payment_due_at");
-                Timestamp deliveryStartAt = rs.getTimestamp("delivery_start_at");
-
-                return ProjectDTO.builder()
-                        .projectId(rs.getLong("project_id"))
-                        .userId(rs.getLong("user_id"))
-                        .title(rs.getString("title"))
-                        .subtitle(rs.getString("subtitle"))
-                        .introduction(rs.getString("introduction"))
-                        .itemInfo(rs.getString("item_info"))
-                        .goalAmount(rs.getLong("goal_amount"))
-                        .category(rs.getString("category"))
-                        .approvalStatus(rs.getString("approval_status"))
-                        .progressStatus(rs.getString("progress_status"))
-                        .fundingStartAt(fundingStartAt != null ? fundingStartAt.toLocalDateTime() : null)
-                        .fundingEndAt(fundingEndAt != null ? fundingEndAt.toLocalDateTime() : null)
-                        .paymentDueAt(paymentDueAt != null ? paymentDueAt.toLocalDateTime() : null)
-                        .deliveryStartAt(deliveryStartAt != null ? deliveryStartAt.toLocalDateTime() : null)
-                        .build();
-            }
-        }
+    // 프로젝트 한 건 조회
+    public ProjectDTO findById(
+            Connection conn, Long projectId) throws SQLException {
+        return selectById(conn, projectId, false);
     }
 
     // 프로젝트 등록 후, AUTO_INCREMENT로 만들어진 project_id를 돌려줌
@@ -107,42 +70,62 @@ public class ProjectDAO {
         }
     }
 
-    // 승인된 프로젝트 목록 조회
+    // 승인된 프로젝트 전체 목록 조회
     public List<ProjectDTO> findAll(Connection conn) throws SQLException {
+        return findByFilter(conn, null, 0);
+    }
+
+    // 승인된 프로젝트를 카테고리와 진행 상태로 필터링
+    // category가 null이면 전체 카테고리
+    // fundingStatus: 0은 전체, 1은 진행 중, 2는 마감
+    public List<ProjectDTO> findByFilter(
+            Connection conn, String category, int fundingStatus)
+            throws SQLException {
+
         String sql = """
-                SELECT project_id, user_id, title, subtitle,
-                        introduction, item_info, goal_amount,
-                        category, approval_status, progress_status,
-                        funding_start_at, funding_end_at,
-                        payment_due_at, delivery_start_at
-                FROM project
-                WHERE approval_status = 'approved'
-                ORDER BY project_id DESC
-                """; // project_id는 Auto Increment 속성이므로, 등록한 최신순으로 보여줌. DESC
+        SELECT project_id, user_id, title, subtitle,
+               introduction, item_info, goal_amount,
+               category, approval_status, progress_status,
+               funding_start_at, funding_end_at,
+               payment_due_at, delivery_start_at
+        FROM project
+        WHERE approval_status = ?
+        """;
+
+        if (category != null) {
+            sql += " AND category = ?";
+        }
+
+        if (fundingStatus == 1) {
+            sql += " AND progress_status = ?";
+        } else if (fundingStatus == 2) {
+            sql += " AND progress_status IN (?, ?)";
+        }
+
+        sql += " ORDER BY project_id DESC";
+
         List<ProjectDTO> projects = new ArrayList<>();
 
-        try(PreparedStatement pstmt = conn.prepareStatement(sql);
-            ResultSet rs = pstmt.executeQuery()){
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            int parameterIndex = 1;
 
-            while(rs.next()){
-                ProjectDTO project = new ProjectDTO();
+            pstmt.setString(parameterIndex++, "approved");
 
-                project.setProjectId(rs.getLong("project_id"));
-                project.setUserId(rs.getLong("user_id"));
-                project.setTitle(rs.getString("title"));
-                project.setSubtitle(rs.getString("subtitle"));
-                project.setIntroduction(rs.getString("introduction"));
-                project.setItemInfo(rs.getString("item_info"));
-                project.setGoalAmount(rs.getLong("goal_amount"));
-                project.setCategory(rs.getString("category"));
-                project.setApprovalStatus(rs.getString("approval_status"));
-                project.setProgressStatus(rs.getString("progress_status"));
-                project.setFundingStartAt(rs.getObject("funding_start_at", LocalDateTime.class));
-                project.setFundingEndAt(rs.getObject("funding_end_at", LocalDateTime.class));
-                project.setPaymentDueAt(rs.getObject("payment_due_at", LocalDateTime.class));
-                project.setDeliveryStartAt(rs.getObject("delivery_start_at", LocalDateTime.class));
+            if (category != null) {
+                pstmt.setString(parameterIndex++, category);
+            }
 
-                projects.add(project);
+            if (fundingStatus == 1) {
+                pstmt.setString(parameterIndex, "ongoing");
+            } else if (fundingStatus == 2) {
+                pstmt.setString(parameterIndex++, "success");
+                pstmt.setString(parameterIndex, "fail");
+            }
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    projects.add(mapProject(rs));
+                }
             }
         }
 
@@ -218,28 +201,7 @@ public class ProjectDAO {
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
-                    ProjectDTO project = new ProjectDTO();
-
-                    project.setProjectId(rs.getLong("project_id"));
-                    project.setUserId(rs.getLong("user_id"));
-                    project.setTitle(rs.getString("title"));
-                    project.setSubtitle(rs.getString("subtitle"));
-                    project.setIntroduction(rs.getString("introduction"));
-                    project.setItemInfo(rs.getString("item_info"));
-                    project.setGoalAmount(rs.getLong("goal_amount"));
-                    project.setCategory(rs.getString("category"));
-                    project.setApprovalStatus(rs.getString("approval_status"));
-                    project.setProgressStatus(rs.getString("progress_status"));
-                    project.setFundingStartAt(
-                            rs.getObject("funding_start_at", LocalDateTime.class));
-                    project.setFundingEndAt(
-                            rs.getObject("funding_end_at", LocalDateTime.class));
-                    project.setPaymentDueAt(
-                            rs.getObject("payment_due_at", LocalDateTime.class));
-                    project.setDeliveryStartAt(
-                            rs.getObject("delivery_start_at", LocalDateTime.class));
-
-                    projects.add(project);
+                    projects.add(mapProject(rs));
                 }
             }
         }
@@ -359,57 +321,28 @@ public class ProjectDAO {
         return selectById(conn, projectId, true);
     }
 
-
-    // 일반 조회와 행 잠금 조회의 공통 처리
-    private ProjectDTO selectById(
-            Connection conn, Long projectId, boolean forUpdate)
+    // 일반 단건 조회와 행 잠금 조회 공통 처리
+    private ProjectDTO selectById(Connection conn, Long projectId, boolean forUpdate)
             throws SQLException {
 
         String sql = "SELECT * FROM project WHERE project_id = ?"
                 + (forUpdate ? " FOR UPDATE" : "");
 
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
             pstmt.setLong(1, projectId);
 
             try (ResultSet rs = pstmt.executeQuery()) {
-
                 if (!rs.next()) {
                     return null;
                 }
 
-                ProjectDTO project = new ProjectDTO();
-
-                project.setProjectId(rs.getLong("project_id"));
-                project.setUserId(rs.getLong("user_id"));
-                project.setTitle(rs.getString("title"));
-                project.setSubtitle(rs.getString("subtitle"));
-                project.setIntroduction(rs.getString("introduction"));
-                project.setItemInfo(rs.getString("item_info"));
-                project.setGoalAmount(rs.getLong("goal_amount"));
-                project.setCategory(rs.getString("category"));
-                project.setApprovalStatus(rs.getString("approval_status"));
-                project.setProgressStatus(rs.getString("progress_status"));
-                project.setFundingStartAt(
-                        rs.getObject("funding_start_at", java.time.LocalDateTime.class));
-
-                project.setFundingEndAt(
-                        rs.getObject("funding_end_at", java.time.LocalDateTime.class));
-
-                project.setPaymentDueAt(
-                        rs.getObject("payment_due_at", java.time.LocalDateTime.class));
-
-                project.setDeliveryStartAt(
-                        rs.getObject("delivery_start_at", java.time.LocalDateTime.class));
-
-                return project;
+                return mapProject(rs);
             }
         }
     }
 
-
     // 프로젝트 상태 변경
-// 기존 상태와 일치할 때만 변경
+    // 기존 상태와 일치할 때만 변경
     public int changeStatus(
             Connection conn,
             Long projectId,
@@ -430,5 +363,28 @@ public class ProjectDAO {
 
             return pstmt.executeUpdate();
         }
+    }
+
+    // 현재 행의 프로젝트 정보를 DTO로 변환
+    // rs.next() 호출은 조회 메서드에서 처리
+    private ProjectDTO mapProject(ResultSet rs) throws SQLException {
+        ProjectDTO project = new ProjectDTO();
+
+        project.setProjectId(rs.getLong("project_id"));
+        project.setUserId(rs.getLong("user_id"));
+        project.setTitle(rs.getString("title"));
+        project.setSubtitle(rs.getString("subtitle"));
+        project.setIntroduction(rs.getString("introduction"));
+        project.setItemInfo(rs.getString("item_info"));
+        project.setGoalAmount(rs.getLong("goal_amount"));
+        project.setCategory(rs.getString("category"));
+        project.setApprovalStatus(rs.getString("approval_status"));
+        project.setProgressStatus(rs.getString("progress_status"));
+        project.setFundingStartAt(rs.getObject("funding_start_at", LocalDateTime.class));
+        project.setFundingEndAt(rs.getObject("funding_end_at", LocalDateTime.class));
+        project.setPaymentDueAt(rs.getObject("payment_due_at", LocalDateTime.class));
+        project.setDeliveryStartAt(rs.getObject("delivery_start_at", LocalDateTime.class));
+
+        return project;
     }
 }
