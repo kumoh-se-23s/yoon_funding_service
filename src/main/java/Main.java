@@ -84,7 +84,7 @@ public class Main {
     private static final ReviewView reviewView = new ReviewView(reviewDAO, reviewService, fss);
 
     public static void main(String[] args) {
-        // initDB();                       //  검사에 필요한 사전 데이터를 insert하는 메소드 (실행 후 주석 처리)
+         initDB();                       //  검사에 필요한 사전 데이터를 insert하는 메소드 (실행 후 주석 처리)
         // 검사할 항목 하나만 주석 해제하여 실행
 
         // test01ViewFundingStatus();      // MAKER     - 프로젝트별 펀딩 현황 보기
@@ -95,7 +95,7 @@ public class Main {
         // test06ViewProjects();           // SUPPORTER - 프로젝트 보기
         // test07FilterProjects();         // SUPPORTER - 프로젝트 필터링
         // test08ApplyReward();            // SUPPORTER - 리워드 신청
-        // test09RegisterReview();         // SUPPORTER - 리뷰 및 별점 등록
+         test09RegisterReview();         // SUPPORTER - 리뷰 및 별점 등록
         // test10ConcurrencyControl();     // SUPPORTER - 제공 가능 수량 동시성 제어
     }
 

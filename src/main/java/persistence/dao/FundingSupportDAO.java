@@ -66,7 +66,7 @@ public class FundingSupportDAO {
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
                     SupportDTO support = SupportDTO.builder()
-                            .supportId(rs.getLong("support_id"))
+                            .supportId(rs.getLong("support_Id"))
                             .userId(rs.getLong("user_id"))
                             .projectId(rs.getLong("project_id"))
                             .rewardId(rs.getLong("reward_id"))

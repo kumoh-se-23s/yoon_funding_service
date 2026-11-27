@@ -22,10 +22,11 @@ public class ReviewService {
         try (Connection conn = ds.getConnection()) {
             conn.setAutoCommit(false);
 
-            if (!reviewDAO.isSupported(
-                    conn, supportUserId, projectId, review.getSupportId()))
+            Long supportId = reviewDAO.getSupportId(conn, supportUserId, projectId);
+            if (supportId == null)
                 throw new SQLException("지원하지 않은 리워드에 리뷰 등록 불가능");
 
+            review.setSupportId(supportId);
             Long reviewId = reviewDAO.insert(conn, review);
             conn.commit();
 

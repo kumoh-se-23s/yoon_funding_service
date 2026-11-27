@@ -24,8 +24,8 @@ public class ReviewDAO {
     public boolean isSupported(
             Connection conn,
             Long supportUserId,
-            Long projectId,
-            Long supportId) throws SQLException {
+            Long projectId
+    ) throws SQLException {
 
         String sql = """
         SELECT EXISTS (
@@ -35,7 +35,6 @@ public class ReviewDAO {
                 ON fs.reward_id = r.reward_id
             WHERE fs.user_id = ?
               AND r.project_id = ?
-              AND fs.support_id = ?
               AND fs.cancel_status = FALSE
         )
         """;
@@ -43,7 +42,6 @@ public class ReviewDAO {
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setLong(1, supportUserId);
             pstmt.setLong(2, projectId);
-            pstmt.setLong(3, supportId);
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 return rs.next() && rs.getBoolean(1);
@@ -51,4 +49,33 @@ public class ReviewDAO {
         }
     }
 
+    public Long getSupportId(
+            Connection conn,
+            Long supportUserId,
+            Long projectId
+    ) throws SQLException {
+
+       String sql = """
+        SELECT fs.support_id
+        FROM support fs
+        JOIN reward r
+            ON fs.reward_id = r.reward_id
+        WHERE fs.user_id = ?
+          AND r.project_id = ?
+          AND fs.cancel_status = FALSE
+        LIMIT 1
+        """;
+
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setLong(1, supportUserId);
+            pstmt.setLong(2, projectId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getLong("support_id");
+                }
+                return null;
+            }
+        }
+    }
 }
