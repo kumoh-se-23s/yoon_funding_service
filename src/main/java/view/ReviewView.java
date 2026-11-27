@@ -81,4 +81,3 @@ public class ReviewView {
         System.out.println("총 후원 건수: " + supports.size());
     }
 }
-
