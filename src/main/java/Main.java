@@ -460,7 +460,7 @@ private static byte[] loadDemoImage(String fileName) {
                 );
                 SupportRequestDTO srDTO = supportView.input();
                 fss.support(srDTO);
-                fss.checkCountSupporterByReward(srDTO.getRewardId());
+                //fss.checkCountSupporterByReward(srDTO.getRewardId());
                 System.out.println();
             } catch (Exception e) {
                 e.printStackTrace();
