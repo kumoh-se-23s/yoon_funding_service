@@ -4,12 +4,11 @@ import lombok.RequiredArgsConstructor;
 import persistence.dto.UserDTO;
 
 import java.util.Scanner;
+import domain.UserRole;
 
 @RequiredArgsConstructor
 // 콘솔 입출력 담당 (입력 받기 + 결과 출력)
 public class UserView {
-    private static final String[] ROLE_NAMES = {"관리자", "서포터", "메이커"};
-
     // System.in을 감싼 Scanner는 프로그램 전체에서 하나만 쓰고 close 하지 않음
     // (close 하면 System.in까지 닫혀서 이후 입력을 못 받음)
     private final Scanner scanner;
@@ -74,8 +73,12 @@ public class UserView {
             System.out.println("로그인 실패 : 아이디 또는 비밀번호가 올바르지 않습니다.");
             return;
         }
+
+        String roleName =
+                UserRole.fromDbValue(loginUser.getRole()).getDisplayName();
+
         System.out.println("로그인 성공 : " + loginUser.getNickname()
-                + "(" + loginUser.getLoginId() + ", " + ROLE_NAMES[loginUser.getRole()] + ")");
+                + "(" + loginUser.getLoginId() + ", " + roleName + ")");
         System.out.println("-------------------------------------");
     }
 

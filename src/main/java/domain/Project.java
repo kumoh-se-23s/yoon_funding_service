@@ -14,14 +14,20 @@ public class Project {
     }
 
     public static String getApprovalStatus(ProjectDTO projectDTO) {
-        int status = projectDTO.getProjectStatus();
+        String status = checkNullPoint(projectDTO.getApprovalStatus());
 
-        return approvalStatus[checkNullPoint(status)];
+        return switch (status) {
+            case "awaiting" -> "심사대기";
+            case "approved" -> "승인";
+            case "unapproved" -> "반려";
+            default -> throw new IllegalArgumentException(
+                    "잘못된 심사 상태: " + status);
+        };
     }
 
     public static String getSuccessStatus(ProjectDTO projectDTO) {
         if (!Project.isApprovl(projectDTO))
-            return approvalStatus[projectDTO.getProjectStatus()];
+            return Project.getApprovalStatus(projectDTO);
 
         LocalDateTime start = projectDTO.getFundingStartAt();
         LocalDateTime end = projectDTO.getFundingEndAt();

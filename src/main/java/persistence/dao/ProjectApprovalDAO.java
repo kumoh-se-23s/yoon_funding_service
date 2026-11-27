@@ -15,7 +15,7 @@ public class ProjectApprovalDAO {
         try (PreparedStatement pstmt =
                      conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             pstmt.setLong(1, approval.getProjectId());
-            pstmt.setInt(2, approval.getProjectStatus());
+            pstmt.setString(2, approval.getProjectStatus());
             pstmt.setString(3, approval.getRejectReason());   // 승인이면 null
             pstmt.setObject(4, approval.getEvalAt());
             pstmt.setObject(5, approval.getSubmissionAt());
@@ -46,7 +46,7 @@ public class ProjectApprovalDAO {
 
                 approval.setApprovalId(rs.getLong("approval_id"));
                 approval.setProjectId(rs.getLong("project_id"));
-                approval.setProjectStatus(rs.getInt("project_status"));
+                approval.setProjectStatus(rs.getString("project_status"));
                 approval.setRejectReason(rs.getString("reject_reason"));
                 approval.setEvalAt(
                         rs.getObject("eval_at", java.time.LocalDateTime.class));
@@ -61,11 +61,14 @@ public class ProjectApprovalDAO {
     // 승인 대기(0) 상태의 심사 이력을 승인(1) 상태로 변경
     public int approvePending(Connection conn, Long approvalId)
             throws SQLException {
-        String sql = "UPDATE project_approval "
-                + "SET project_status = 1, "
-                + "reject_reason = NULL, "
-                + "eval_at = NOW() "
-                + "WHERE approval_id = ? AND project_status = 0";
+        String sql = """
+            UPDATE project_approval
+            SET project_status = 'approved',
+                reject_reason = NULL,
+                eval_at = NOW()
+            WHERE approval_id = ?
+              AND project_status = 'awaiting'
+            """;
 
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setLong(1, approvalId);

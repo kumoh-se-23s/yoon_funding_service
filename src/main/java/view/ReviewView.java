@@ -35,10 +35,24 @@ public class ReviewView {
         sc.nextLine(); // 버퍼 비우기
 
         printSupports(loginUser);
-        System.out.println("리뷰를 등록할 projectId?: ");
-        Long supportProjectId= sc.nextLong();
-
+        System.out.print("리뷰를 등록할 후원 번호: ");
+        Long supportId = sc.nextLong();
         sc.nextLine();
+
+        SupportDTO selectedSupport = null;
+
+        for (SupportDTO support : fss.findSupports(loginUser.getUserId())) {
+            if (supportId.equals(support.getSupportId())) {
+                selectedSupport = support;
+                break;
+            }
+        }
+
+        if (selectedSupport == null) {
+            System.out.println("[안내] 본인의 취소되지 않은 후원 번호를 선택해 주세요.");
+            return;
+        }
+
         System.out.print("리뷰 내용: ");
         String content = sc.nextLine();
 
@@ -47,12 +61,16 @@ public class ReviewView {
         sc.nextLine();
 
         ReviewDTO reviewDTO = ReviewDTO.builder()
-                .supportId(supportProjectId)
+                .supportId(selectedSupport.getSupportId())
                 .content(content)
                 .score(score)
                 .build();
 
-        Long reviewId = reviewService.append(reviewDTO, loginUser.getUserId(), supportProjectId);
+        Long reviewId = reviewService.append(
+                reviewDTO,
+                loginUser.getUserId(),
+                selectedSupport.getProjectId()
+        );
 
         System.out.println("리뷰 등록 완료! 리뷰 ID: " + reviewId);
     }
@@ -71,6 +89,7 @@ public class ReviewView {
             SupportDTO support = supports.get(i);
 
             System.out.println("[" + (i + 1) + "번째 후원]");
+            System.out.println("후원 번호: " + support.getSupportId());
             System.out.println("프로젝트: " + support.getProjectTitle());
             System.out.println("프로젝트 ID: " + support.getProjectId());
             System.out.println("리워드: " + support.getRewardTitle());

@@ -15,8 +15,9 @@ public class UserDTO {
     private Long userId;
     private String loginId;
     private String password;
-    private Integer role;          // 0=관리자, 1=서포터, 2=메이커
+    private String role;
     private String name;
+    private String contact; // 연락처 필수이므로 추가함.
     private String nickname;
     private String email;
     private LocalDateTime createdAt;

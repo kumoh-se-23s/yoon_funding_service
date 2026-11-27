@@ -16,7 +16,10 @@ public class FundingSupportDTO {
     private Long supportId;
     private Long rewardId;
     private Long userId;
-    private LocalDateTime supportedAt;
+    @Builder.Default
+    private int rewardCount = 1; // 기존 빌더에서 신청수량 지정 안해도 1로 디폴트 생성
+
+    private LocalDateTime processedAt;
 
     private String recipientName;
     private String recipientContact;

@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
+import java.sql.Statement;
 
 // 검사에 필요한 사전(더미) 데이터를 한 번에 넣는 서비스
 // - 실행할 때마다 모든 테이블을 비우고 다시 넣기 때문에 여러 번 실행해도 결과가 항상 같음
@@ -49,13 +50,13 @@ public class InitDBService {
     }
 
     // 프로젝트 상태 코드
-    private static final int APPROVED = 1;
-    private static final int REJECTED = 2;
+    private static final String APPROVED = "approved";
+    private static final String REJECTED = "unapproved";
 
     // 사용자 역할 코드
-    private static final int ROLE_ADMIN = 0;
-    private static final int ROLE_SUPPORTER = 1;
-    private static final int ROLE_MAKER = 2;
+    private static final String ROLE_ADMIN = "admin";
+    private static final String ROLE_SUPPORTER = "supporter";
+    private static final String ROLE_MAKER = "maker";
 
     // 메이커는 숫자 PK 대신 login_id로 가리킴 (PK는 DB가 AUTO_INCREMENT로 만들기 때문)
     private static final String MAKER_FUNDING_FAIRY = "user14"; // 펀딩요정(신유진)
@@ -87,6 +88,7 @@ public class InitDBService {
                 insertTaehyunTreatment(conn);     // 승인 + 현재 진행 중
                 insertTaehyunDronix(conn);        // 승인 + 펀딩 성공 + 배송 지남 + 리뷰
                 insertInterests(conn);            // 관심 프로젝트(좋아요) 20건
+                initializeStatuses(conn);
 
                 conn.commit();
                 System.out.println("initDB 완료 : 사전 데이터 입력이 끝났습니다.");
@@ -141,8 +143,8 @@ public class InitDBService {
                 .introduction("건조한 사무실과 침실에서 간편하게 사용할 수 있는 충전식 휴대용 미니 가습기입니다.")
                 .itemInfo(null)
                 .goalAmount(1_500_000L)
-                .category(0)
-                .projectStatus(REJECTED)
+                .category("tech")
+                .approvalStatus(REJECTED)
                 .fundingStartAt(null)
                 .fundingEndAt(null)
                 .paymentDueAt(null)
@@ -169,8 +171,8 @@ public class InitDBService {
                 .introduction("노트북과 태블릿을 자주 사용하는 사용자를 위해 휴대성을 높인 초소형 블루투스 키보드입니다. 작은 크기에서도 문서 작성에 필요한 주요 키 배열을 유지했습니다.")
                 .itemInfo("68키 배열, 블루투스 연결, USB-C 충전 방식의 휴대용 키보드입니다.")
                 .goalAmount(1_000_000L)
-                .category(0)
-                .projectStatus(APPROVED)
+                .category("tech")
+                .approvalStatus(APPROVED)
                 .fundingStartAt(dt("2026-09-01 00:00:00"))
                 .fundingEndAt(dt("2026-09-30 23:59:59"))
                 .paymentDueAt(dt("2026-10-03 12:00:00"))
@@ -203,8 +205,8 @@ public class InitDBService {
                 .introduction("집중 시간과 휴식 시간을 빛의 변화로 알려주는 데스크용 타이머 무드램프입니다.")
                 .itemInfo("25분 집중·5분 휴식 모드, 밝기 조절, USB-C 전원을 지원합니다.")
                 .goalAmount(100_000L)
-                .category(1)
-                .projectStatus(APPROVED)
+                .category("living")
+                .approvalStatus(APPROVED)
                 .fundingStartAt(dt("2026-08-01 00:00:00"))
                 .fundingEndAt(dt("2026-08-31 23:59:59"))
                 .paymentDueAt(dt("2026-09-02 10:00:00"))
@@ -232,6 +234,7 @@ public class InitDBService {
 
     // 5. "달리는민준"의 프로젝트B : 1차 반려 → 재신청 → 승인 → 현재 진행 중 (11/3 마감)
     private void insertMinjunProjectB(Connection conn) throws SQLException {
+        LocalDateTime end = LocalDateTime.now().plusDays(14).withNano(0);
         Long projectId = projectDAO.insert(conn, ProjectDTO.builder()
                 .userId(uid(MAKER_MINJUN))
                 .title("냥냥마을을 지켜라! 전략 카드게임")
@@ -239,12 +242,12 @@ public class InitDBService {
                 .introduction("고양이 주민을 모으고 건물을 건설해 가장 높은 점수를 만드는 전략 카드게임입니다.")
                 .itemInfo("고양이 카드 80장, 건물 카드 30장, 토큰, 점수판, 설명서로 구성됩니다.")
                 .goalAmount(120_000L)
-                .category(2)
-                .projectStatus(APPROVED) // 최종 상태 = 승인
+                .category("hobby")
+                .approvalStatus(APPROVED) // 최종 상태 = 승인
                 .fundingStartAt(dt("2026-09-01 00:00:00"))
-                .fundingEndAt(dt("2026-11-03 23:59:59"))
-                .paymentDueAt(dt("2026-11-05 10:00:00"))
-                .deliveryStartAt(dt("2026-11-20 09:00:00"))
+                .fundingEndAt(end)
+                .paymentDueAt(end.plusDays(2))
+                .deliveryStartAt(end.plusDays(17))
                 .build());
         projectIds.put("D", projectId);
 
@@ -267,6 +270,7 @@ public class InitDBService {
 
     // 6. "밤하늘별"의 워터트리트먼트 : 승인 → 현재 진행 중 (11/3 마감)
     private void insertTaehyunTreatment(Connection conn) throws SQLException {
+        LocalDateTime end = LocalDateTime.now().plusDays(14).withNano(0);
         Long projectId = projectDAO.insert(conn, ProjectDTO.builder()
                 .userId(uid(MAKER_TAEHYUN))
                 .title("빛나는 머릿결되기까지 5초! 워터트리트먼트")
@@ -274,12 +278,12 @@ public class InitDBService {
                 .introduction("자연유래 성분을 활용한 헤어 케어 프로젝트입니다. 젖은 모발에 사용하는 워터트리트먼트로 부드럽고 윤기 있는 머릿결 관리를 돕습니다.")
                 .itemInfo("워터트리트먼트 트리트먼트 민트휩샴푸 유자휩샴푸")
                 .goalAmount(1_000_000L)
-                .category(1)
-                .projectStatus(APPROVED)
+                .category("beauty")
+                .approvalStatus(APPROVED)
                 .fundingStartAt(dt("2026-10-01 00:00:00"))
-                .fundingEndAt(dt("2026-11-03 23:59:59"))
-                .paymentDueAt(dt("2026-11-05 10:00:00"))
-                .deliveryStartAt(dt("2026-11-20 09:00:00"))
+                .fundingEndAt(end)
+                .paymentDueAt(end.plusDays(2))
+                .deliveryStartAt(end.plusDays(17))
                 .build());
         projectIds.put("E", projectId);
 
@@ -309,8 +313,8 @@ public class InitDBService {
                 .introduction("드론을 직접 조립하고 비행해 보는 프로젝트 드로닉스입니다. 우리에게 성큼 다가선 드론! 이제 다양한 드론을 직접 제작하고 그 원리를 알아보세요! 디지털 제품 카테고리에 등록되어 있습니다.")
                 .itemInfo("드로닉스키트 드론3D베이스출력물 스마트스킨")
                 .goalAmount(200_000L)                        // 변경: 1,000,000 → 200,000 (아래 후원으로 펀딩 성공이 되도록)
-                .category(1)
-                .projectStatus(APPROVED)
+                .category("tech")
+                .approvalStatus(APPROVED)
                 .fundingStartAt(dt("2026-09-01 00:00:00"))
                 .fundingEndAt(dt("2026-09-28 23:59:59"))
                 .paymentDueAt(dt("2026-09-30 10:00:00"))
@@ -368,18 +372,26 @@ public class InitDBService {
 
     // 반복되는 insert를 짧게 쓰기 위한 도우미 메서드들 (모두 같은 conn = 같은 트랜잭션)
     // user_id는 AI → DB가 만든 user_id를 받아서 userIds에 보관
-    private void insertUser(Connection conn, String loginId, String password, int role, String name,
-                            String nickname, String email, String address, String detailAddress) throws SQLException {
+    private void insertUser(
+            Connection conn, String loginId, String password,
+            String role, String name, String nickname,
+            String email, String address, String detailAddress)
+            throws SQLException {
+
+        String contact = String.format("010-0000-%04d", userIds.size() + 1);
+
         Long userId = userDAO.insert(conn, UserDTO.builder()
                 .loginId(loginId)
                 .password(PasswordUtil.hash(password)) // 평문 → bcrypt 해시
                 .role(role)
                 .name(name)
+                .contact(contact)
                 .nickname(nickname)
                 .email(email)
                 .address(address)
                 .detailAddress(detailAddress)
                 .build());
+
         userIds.put(loginId, userId);
     }
 
@@ -426,19 +438,21 @@ public class InitDBService {
     }
 
     private Long insertReward(Connection conn, Long projectId, String title, String content, String fileName,
-                              int stockQuantity, long price) throws SQLException {
+                              int totalCount, long price) throws SQLException {
         return rewardDAO.insert(conn, RewardDTO.builder()
                 .projectId(projectId)
                 .title(title)
                 .content(content)
                 .imgBlob(img(fileName))
-                .stockQuantity(stockQuantity)
+                .totalCount(totalCount)
                 .price(price)
                 .build());
     }
 
-    private void insertApproval(Connection conn, Long projectId, int status, String rejectReason,
-                                String submissionAt, String evalAt) throws SQLException {
+    private void insertApproval(
+            Connection conn, Long projectId, String status,
+            String rejectReason, String submissionAt,
+            String evalAt) throws SQLException {
         projectApprovalDAO.insert(conn, ProjectApprovalDTO.builder()
                 .projectId(projectId)
                 .projectStatus(status)
@@ -448,13 +462,13 @@ public class InitDBService {
                 .build());
     }
 
-    private Long insertSupport(Connection conn, Long rewardId, Long userId, String supportedAt, String recipientName,
+    private Long insertSupport(Connection conn, Long rewardId, Long userId, String processedAt, String recipientName,
                                String recipientContact, String deliveryAddress, String deliveryDetailAddress,
                                boolean cancelStatus) throws SQLException {
         return fundingSupportDAO.insert(conn, FundingSupportDTO.builder()
                 .rewardId(rewardId)
                 .userId(userId)
-                .supportedAt(dt(supportedAt))
+                .processedAt(dt(processedAt))
                 .recipientName(recipientName)
                 .recipientContact(recipientContact)
                 .deliveryAddress(deliveryAddress)
@@ -491,6 +505,50 @@ public class InitDBService {
             return in.readAllBytes();
         } catch (IOException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private void initializeStatuses(Connection conn) throws SQLException {
+        String rewardSql = """
+            UPDATE reward r
+            LEFT JOIN (
+                SELECT reward_id,
+                       SUM(reward_count) AS applied_count
+                FROM support
+                WHERE cancel_status = FALSE
+                GROUP BY reward_id
+            ) funding ON funding.reward_id = r.reward_id
+            SET r.sold_out_status =
+                (r.total_count <= COALESCE(funding.applied_count, 0))
+            """;
+
+        String projectSql = """
+            UPDATE project p
+            LEFT JOIN (
+                SELECT r.project_id,
+                       SUM(r.price * s.reward_count) AS funded_amount
+                FROM reward r
+                JOIN support s ON s.reward_id = r.reward_id
+                WHERE s.cancel_status = FALSE
+                GROUP BY r.project_id
+            ) funding ON funding.project_id = p.project_id
+            SET p.progress_status = CASE
+                WHEN p.approval_status <> 'approved'
+                  OR p.funding_start_at IS NULL
+                  OR p.funding_end_at IS NULL
+                  OR p.funding_start_at > NOW()
+                    THEN 'ready'
+                WHEN p.funding_end_at > NOW()
+                    THEN 'ongoing'
+                WHEN COALESCE(funding.funded_amount, 0) >= p.goal_amount
+                    THEN 'success'
+                ELSE 'fail'
+            END
+            """;
+
+        try (Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate(rewardSql);
+            stmt.executeUpdate(projectSql);
         }
     }
 }

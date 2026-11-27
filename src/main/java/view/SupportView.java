@@ -1,13 +1,8 @@
 package view;
 
-import domain.FundingSupport;
-import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import persistence.dao.FundingSupportDAO;
-import persistence.dao.ProjectDAO;
-import persistence.dao.RewardDAO;
-import persistence.dao.UserDAO;
+
 import persistence.dto.ProjectDTO;
 import persistence.dto.RewardDTO;
 import persistence.dto.SupportRequestDTO;
@@ -18,8 +13,9 @@ import service.RewardService;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
-import java.sql.SQLException;
+import exception.DataAccessException;
 import java.util.Scanner;
+import exception.SupportRejectedException;
 
 @RequiredArgsConstructor
 public class SupportView {
@@ -46,44 +42,99 @@ public class SupportView {
     private RewardDTO supportReward = null;
 
     public void supportView() {
-        SupportRequestDTO requestDTO = input();
-        FundingSupportService fss = new FundingSupportService(
-                ds, new FundingSupportDAO(), new UserDAO(), new ProjectDAO(), new RewardDAO()
-        );
+        while (true) {
+            try {
+                SupportRequestDTO request = input();
 
-        fss.support(requestDTO);
+                if (request == null) {
+                    System.out.println("후원 신청을 종료했습니다.");
+                    return;
+                }
+
+                fss.support(request);
+                System.out.println("후원 신청이 완료되었습니다.");
+                return;
+
+            } catch (SupportRejectedException e) {
+                System.out.println("[안내] " + e.getMessage());
+
+            } catch (java.util.InputMismatchException e) {
+                sc.nextLine();
+                System.out.println("[안내] 번호는 정수로 입력해주세요.");
+
+            } catch (DataAccessException e) {
+                System.out.println(
+                        "프로젝트 조회 중 오류가 발생하여 후원 신청을 종료합니다.");
+                return;
+            }
+        }
     }
 
-    public SupportRequestDTO input () {
-        this.supportProject = projectInput();
+    public SupportRequestDTO input() {
+        if (this.supportProject == null) {
+            this.supportProject = projectInput();
+
+            if (this.supportProject == null) {
+                return null;
+            }
+        } else {
+            this.supportProject =
+                    projectService.findById(this.supportProject.getProjectId());
+        }
+
+        if (this.supportProject == null
+                || !"approved".equals(this.supportProject.getApprovalStatus())
+                || !"ongoing".equals(this.supportProject.getProgressStatus())) {
+            this.supportProject = null;
+            throw new SupportRejectedException(
+                    "현재 후원할 수 없는 프로젝트입니다. 다른 프로젝트를 선택해주세요.");
+        }
+
         this.supportReward = rewardInput(supportProject.getProjectId());
+
+        if (this.supportReward == null) {
+            return null;
+        }
+
+        int rewardCount = inputRewardCount();
+
+        if (rewardCount == 0) {
+            return null;
+        }
 
         SupportRequestDTO request = SupportRequestDTO.builder()
                 .userId(loginUser.getUserId())
                 .projectId(supportProject.getProjectId())
                 .rewardId(supportReward.getRewardId())
+                .rewardCount(rewardCount)
                 .build();
 
-        System.out.println("수령인 정보를 입력하시겠습니까? (y/n)");
-        char cont = Character.toUpperCase(sc.next().charAt(0));
-        sc.nextLine();
+        String choice;
 
-        if(cont == 'Y') {
-            System.out.println("수령인이름: ");
-            String recipientName = sc.next();
-            request.setRecipientName(recipientName);
+        while (true) {
+            System.out.print("수령인 정보를 따로 입력하시겠습니까? (y/n): ");
+            choice = sc.nextLine().trim();
 
-            System.out.println("전화번호: ");
-            String recipientContact = sc.next();
-            request.setRecipientContact(recipientContact);
+            if (choice.equalsIgnoreCase("y")
+                    || choice.equalsIgnoreCase("n")) {
+                break;
+            }
 
-            System.out.println("배송주소: ");
-            String deliveryAddress = sc.next();
-            request.setDeliveryAddress(deliveryAddress);
+            System.out.println("y 또는 n을 입력해주세요.");
+        }
 
-            System.out.println("상세주소: ");
-            String deliveryDetailAddress = sc.next();
-            request.setDeliveryDetailAddress(deliveryDetailAddress);
+        if (choice.equalsIgnoreCase("y")) {
+            System.out.print("수령인 이름: ");
+            request.setRecipientName(sc.nextLine().trim());
+
+            System.out.print("전화번호: ");
+            request.setRecipientContact(sc.nextLine().trim());
+
+            System.out.print("배송 주소: ");
+            request.setDeliveryAddress(sc.nextLine().trim());
+
+            System.out.print("상세 주소: ");
+            request.setDeliveryDetailAddress(sc.nextLine().trim());
         }
 
         return request;
@@ -91,39 +142,84 @@ public class SupportView {
 
     private ProjectDTO projectInput() {
         viewProjects();
-        System.out.println("프로젝트 번호를 선택해주세요");
+
+        System.out.print("프로젝트 번호(0: 신청 종료): ");
         Long projectId = sc.nextLong();
         sc.nextLine();
 
-        ProjectDTO supportProject = projectService.findById(projectId);
+        if (projectId == 0L) {
+            return null;
+        }
 
-        return supportProject;
+        ProjectDTO project = projectService.findById(projectId);
+
+        if (project == null) {
+            throw new SupportRejectedException(
+                    "목록에 있는 프로젝트 번호를 선택해주세요.");
+        }
+
+        return project;
     }
 
     private void viewProjects() {
-        try {
-            projectView.printProjects(
-                    projectService.findAll(),
-                    projectService.findSoldOutProjectIds()
-            );
-        } catch (SQLException e) {
-            System.out.println("프로젝트 조회 실패: " + e.getMessage());
-        }
+        projectView.printProjects(
+                projectService.findAll(),
+                projectService.findSoldOutProjectIds()
+        );
     }
 
     private RewardDTO rewardInput(Long projectId) {
-
         rewardView.printRewards(projectId);
-        System.out.println("리워드 번호를 선택해주세요");
+
+        System.out.print("리워드 번호(0: 신청 종료): ");
         Long rewardId = sc.nextLong();
         sc.nextLine();
 
-        FundingSupport.checkRewardStock(fss.getRemainStock(rewardId));
+        if (rewardId == 0L) {
+            return null;
+        }
 
-        RewardDTO supportReward = rewardService.findById(rewardId);
+        RewardDTO reward = rewardService.findById(rewardId);
 
-        return supportReward;
+        if (reward == null || !projectId.equals(reward.getProjectId())) {
+            throw new SupportRejectedException(
+                    "목록에 있는 리워드 번호를 선택해주세요.");
+        }
+
+        if (fss.getRemainStock(rewardId) <= 0) {
+            throw new SupportRejectedException("선택한 리워드는 품절되었습니다.");
+        }
+
+        return reward;
     }
 
+    private int inputRewardCount() {
+        System.out.print("신청 수량(0: 신청 종료): ");
+
+        int rewardCount;
+
+        try {
+            rewardCount = Integer.parseInt(sc.nextLine().trim());
+        } catch (NumberFormatException e) {
+            throw new SupportRejectedException("수량은 정수로 입력해주세요.");
+        }
+
+        if (rewardCount < 0) {
+            throw new SupportRejectedException("신청 수량은 1개 이상이어야 합니다.");
+        }
+
+        if (rewardCount == 0) {
+            return 0;
+        }
+
+        int remainingStock = fss.getRemainStock(supportReward.getRewardId());
+
+        if (rewardCount > remainingStock) {
+            throw new SupportRejectedException(
+                    "남은 수량이 부족합니다. 남은 수량: " + remainingStock);
+        }
+
+        return rewardCount;
+    }
 
 }
