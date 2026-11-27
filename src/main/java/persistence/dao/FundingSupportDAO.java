@@ -18,7 +18,7 @@ public class FundingSupportDAO {
             FROM funding_support
             WHERE reward_id = ?
               AND cancel_status = FALSE
-            GROUB BY user_id
+            GROUP BY user_id
             """;
 
         int userCount = -1;
