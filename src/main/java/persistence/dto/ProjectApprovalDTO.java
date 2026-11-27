@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 public class ProjectApprovalDTO {
     private Long approvalId;
     private Long projectId;
-    private Integer projectStatus;     // 0=심사대기, 1=승인, 2=반려
+    private String projectStatus;
     private String rejectReason;
     private LocalDateTime evalAt;
     private LocalDateTime submissionAt;

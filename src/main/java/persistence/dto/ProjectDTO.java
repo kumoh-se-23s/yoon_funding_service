@@ -19,13 +19,15 @@ public class ProjectDTO {
     private String introduction;
     private String itemInfo;
     private Long goalAmount;
-    private Integer category;
-    private Integer projectStatus;     // 0=심사대기, 1=승인, 2=반려
+    private String category; // 카테고리의 영문 스트링 값
+    private String approvalStatus;     // awaiting, approved, unapproved
+    private String progressStatus; // ready, ongoing, success, fail
     private LocalDateTime fundingStartAt;
     private LocalDateTime fundingEndAt;
     private LocalDateTime paymentDueAt;
     private LocalDateTime deliveryStartAt;
 
     private Long fundedAmount;
+    private Long likeCount;
 
 }

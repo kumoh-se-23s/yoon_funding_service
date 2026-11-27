@@ -21,23 +21,29 @@ public class ReviewDAO {
         }
     }
 
-    public boolean isSupported(Connection conn, Long supportUserId, Long projectId)
-            throws SQLException {
+    public boolean isSupported(
+            Connection conn,
+            Long supportUserId,
+            Long projectId,
+            Long supportId) throws SQLException {
 
         String sql = """
-            SELECT EXISTS (
-                SELECT 1
-                FROM funding_support fs
-                JOIN reward r
-                    ON fs.reward_id = r.reward_id
-                WHERE fs.user_id = ?
-                  AND r.project_id = ?
-            )
-            """;
+        SELECT EXISTS (
+            SELECT 1
+            FROM support fs
+            JOIN reward r
+                ON fs.reward_id = r.reward_id
+            WHERE fs.user_id = ?
+              AND r.project_id = ?
+              AND fs.support_id = ?
+              AND fs.cancel_status = FALSE
+        )
+        """;
 
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setLong(1, supportUserId);
             pstmt.setLong(2, projectId);
+            pstmt.setLong(3, supportId);
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 return rs.next() && rs.getBoolean(1);

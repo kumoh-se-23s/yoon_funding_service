@@ -8,22 +8,24 @@ import java.util.List;
 
 public class RewardDAO {
 
-    public int update(Connection conn, int stockQuantity, int rewardId, int projectId) throws SQLException {
+    public int update(
+            Connection conn, int totalCount,
+            int rewardId, int projectId) throws SQLException {
+
         String sql = """
-        UPDATE reward
-        SET stock_quantity = ?
-        WHERE reward_id = ?
-            AND project_id = ?
-        """;
+            UPDATE reward
+            SET total_count = ?
+            WHERE reward_id = ?
+              AND project_id = ?
+            """;
 
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, stockQuantity);
+            pstmt.setInt(1, totalCount);
             pstmt.setLong(2, rewardId);
             pstmt.setLong(3, projectId);
 
             return pstmt.executeUpdate();
         }
-
     }
 
     public List<RewardDTO> findAll(Connection conn, Long projectId) {
@@ -34,7 +36,8 @@ public class RewardDAO {
                 title,
                 content,
                 img_blob,
-                stock_quantity,
+                total_count,
+                sold_out_status,
                 price
             FROM reward
             WHERE project_id = ?
@@ -54,7 +57,8 @@ public class RewardDAO {
                             .title(rs.getString("title"))
                             .content(rs.getString("content"))
                             .imgBlob(rs.getBytes("img_blob"))
-                            .stockQuantity(rs.getInt("stock_quantity"))
+                            .totalCount(rs.getInt("total_count"))
+                            .soldOutStatus(rs.getBoolean("sold_out_status"))
                             .price(rs.getLong("price"))
                             .build();
 
@@ -94,7 +98,8 @@ public class RewardDAO {
                         .title(rs.getString("title"))
                         .content(rs.getString("content"))
                         .imgBlob(rs.getBytes("img_blob"))
-                        .stockQuantity(rs.getInt("stock_quantity"))
+                        .totalCount(rs.getInt("total_count"))
+                        .soldOutStatus(rs.getBoolean("sold_out_status"))
                         .price(rs.getLong("price"))
                         .build();
             }
@@ -107,17 +112,24 @@ public class RewardDAO {
 
     // 리워드 등록 후 생성된 reward_id 반환 → 후원(funding_support) insert에 사용
     public Long insert(Connection conn, RewardDTO reward) throws SQLException {
-        String sql = "INSERT INTO reward(project_id, title, content, img_blob, stock_quantity, price) "
-                + "VALUES(?, ?, ?, ?, ?, ?)";
+        String sql = """
+            INSERT INTO reward(
+                project_id, title, content, img_blob,
+                total_count, price, sold_out_status
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """;
 
-        try (PreparedStatement pstmt =
-                     conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (PreparedStatement pstmt = conn.prepareStatement(
+                sql, Statement.RETURN_GENERATED_KEYS)) {
+
             pstmt.setLong(1, reward.getProjectId());
             pstmt.setString(2, reward.getTitle());
             pstmt.setString(3, reward.getContent());
             pstmt.setBytes(4, reward.getImgBlob());
-            pstmt.setInt(5, reward.getStockQuantity());
+            pstmt.setInt(5, reward.getTotalCount());
             pstmt.setLong(6, reward.getPrice());
+            pstmt.setBoolean(7, reward.isSoldOutStatus());
 
             pstmt.executeUpdate();
             return ProjectDAO.generatedKey(pstmt);
@@ -139,4 +151,44 @@ public class RewardDAO {
             }
         }
     }
+    public RewardDTO findByIdForUpdate(Connection conn, Long rewardId)
+            throws SQLException {
+
+        String sql = """
+            SELECT reward_id
+            FROM reward
+            WHERE reward_id = ?
+            FOR UPDATE
+            """;
+
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setLong(1, rewardId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (!rs.next()) {
+                    return null;
+                }
+            }
+        }
+
+        return findById(conn, rewardId);
+    }
+
+    public void updateSoldOutStatus(
+            Connection conn, Long rewardId, boolean soldOut)
+            throws SQLException {
+
+        String sql = """
+            UPDATE reward
+            SET sold_out_status = ?
+            WHERE reward_id = ?
+            """;
+
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setBoolean(1, soldOut);
+            pstmt.setLong(2, rewardId);
+            pstmt.executeUpdate();
+        }
+    }
+
 }

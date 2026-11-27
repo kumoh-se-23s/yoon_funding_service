@@ -13,18 +13,26 @@ public class UserDAO {
     // 회원 등록 : user_id는 넣지 않음 → DB가 AUTO_INCREMENT로 겹치지 않는 번호를 만들어 줌
     // 만들어진 user_id를 돌려주므로, 호출한 쪽은 그 값을 받아서 프로젝트/후원의 FK로 사용
     public Long insert(Connection conn, UserDTO user) throws SQLException {
-        String sql = "INSERT INTO users(login_id, password, role, name, nickname, email, address, detail_address) "
-                + "VALUES(?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = """
+            INSERT INTO users(
+                login_id, password, role, name, contact,
+                nickname, email, address, detail_address
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """;
 
-        try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (PreparedStatement pstmt = conn.prepareStatement(
+                sql, Statement.RETURN_GENERATED_KEYS)) {
+
             pstmt.setString(1, user.getLoginId());
             pstmt.setString(2, user.getPassword());
-            pstmt.setInt(3, user.getRole());
+            pstmt.setString(3, user.getRole());
             pstmt.setString(4, user.getName());
-            pstmt.setString(5, user.getNickname());
-            pstmt.setString(6, user.getEmail());
-            pstmt.setString(7, user.getAddress());
-            pstmt.setString(8, user.getDetailAddress());
+            pstmt.setString(5, user.getContact());
+            pstmt.setString(6, user.getNickname());
+            pstmt.setString(7, user.getEmail());
+            pstmt.setString(8, user.getAddress());
+            pstmt.setString(9, user.getDetailAddress());
 
             pstmt.executeUpdate();
             return ProjectDAO.generatedKey(pstmt);
@@ -82,8 +90,9 @@ public class UserDAO {
         user.setUserId(rs.getLong("user_id"));
         user.setLoginId(rs.getString("login_id"));
         user.setPassword(rs.getString("password"));
-        user.setRole(rs.getInt("role"));
+        user.setRole(rs.getString("role"));
         user.setName(rs.getString("name"));
+        user.setContact(rs.getString("contact"));
         user.setNickname(rs.getString("nickname"));
         user.setEmail(rs.getString("email"));
         user.setCreatedAt(rs.getObject("created_at", LocalDateTime.class));

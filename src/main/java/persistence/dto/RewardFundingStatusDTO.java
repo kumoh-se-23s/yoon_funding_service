@@ -9,7 +9,7 @@ public class RewardFundingStatusDTO {
     private Long rewardId;
     private String title;
     private Long price;
-    private int stockQuantity;
+    private int totalCount;
     private long appliedQuantity;
     private long remainingQuantity;
     private long fundedAmount;

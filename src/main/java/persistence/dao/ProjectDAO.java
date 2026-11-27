@@ -4,81 +4,60 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import lombok.RequiredArgsConstructor;
 import persistence.dto.ProjectDTO;
 
-import javax.sql.DataSource;
 import java.sql.*;
 
 import persistence.dto.RewardFundingStatusDTO;
 import persistence.dto.ProjectSupporterDTO;
 
 public class ProjectDAO {
-
-
-    public ProjectDTO findById(Connection conn, Long projectId) throws SQLException {
-
-        String sql = """
-            SELECT *
-            FROM project
-            WHERE project_id = ?
-            """;
-
-        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setLong(1, projectId);
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-
-                if (!rs.next()) {
-                    return null;
-                }
-
-                Timestamp fundingStartAt = rs.getTimestamp("funding_start_at");
-                Timestamp fundingEndAt = rs.getTimestamp("funding_end_at");
-                Timestamp paymentDueAt = rs.getTimestamp("payment_due_at");
-                Timestamp deliveryStartAt = rs.getTimestamp("delivery_start_at");
-
-                return ProjectDTO.builder()
-                        .projectId(rs.getLong("project_id"))
-                        .userId(rs.getLong("user_id"))
-                        .title(rs.getString("title"))
-                        .subtitle(rs.getString("subtitle"))
-                        .introduction(rs.getString("introduction"))
-                        .itemInfo(rs.getString("item_info"))
-                        .goalAmount(rs.getLong("goal_amount"))
-                        .category(rs.getInt("category"))
-                        .projectStatus(rs.getInt("project_status"))
-                        .fundingStartAt(fundingStartAt != null ? fundingStartAt.toLocalDateTime() : null)
-                        .fundingEndAt(fundingEndAt != null ? fundingEndAt.toLocalDateTime() : null)
-                        .paymentDueAt(paymentDueAt != null ? paymentDueAt.toLocalDateTime() : null)
-                        .deliveryStartAt(deliveryStartAt != null ? deliveryStartAt.toLocalDateTime() : null)
-                        .build();
-            }
-        }
+    // 프로젝트 한 건 조회
+    public ProjectDTO findById(
+            Connection conn, Long projectId) throws SQLException {
+        return selectById(conn, projectId, false);
     }
 
     // 프로젝트 등록 후, AUTO_INCREMENT로 만들어진 project_id를 돌려줌
     // → 이 값을 이미지/리워드/심사 이력 insert에 그대로 넘겨서 FK로 사용
     public Long insert(Connection conn, ProjectDTO project) throws SQLException {
-        String sql = "INSERT INTO project(user_id, title, subtitle, introduction, item_info, goal_amount, category, "
-                + "project_status, funding_start_at, funding_end_at, payment_due_at, delivery_start_at) "
-                + "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = """
+        INSERT INTO project(
+            user_id, title, subtitle, introduction, item_info,
+            goal_amount, category, approval_status, progress_status,
+            funding_start_at, funding_end_at,
+            payment_due_at, delivery_start_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """;
 
-        // RETURN_GENERATED_KEYS : insert 후 DB가 만든 PK를 받아오겠다는 옵션
-        try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        String approvalStatus = project.getApprovalStatus();
+        String progressStatus = project.getProgressStatus();
+
+        if (approvalStatus == null) {
+            approvalStatus = "awaiting";
+        }
+
+        if (progressStatus == null) {
+            progressStatus = "ready";
+        }
+
+        try (PreparedStatement pstmt = conn.prepareStatement(
+                sql, Statement.RETURN_GENERATED_KEYS)) {
+
             pstmt.setLong(1, project.getUserId());
             pstmt.setString(2, project.getTitle());
-            pstmt.setString(3, project.getSubtitle());       // null 가능
+            pstmt.setString(3, project.getSubtitle());
             pstmt.setString(4, project.getIntroduction());
-            pstmt.setString(5, project.getItemInfo());       // null 가능
+            pstmt.setString(5, project.getItemInfo());
             pstmt.setLong(6, project.getGoalAmount());
-            pstmt.setInt(7, project.getCategory());
-            pstmt.setInt(8, project.getProjectStatus());
-            pstmt.setObject(9, project.getFundingStartAt());  // LocalDateTime, null 가능
-            pstmt.setObject(10, project.getFundingEndAt());
-            pstmt.setObject(11, project.getPaymentDueAt());
-            pstmt.setObject(12, project.getDeliveryStartAt());
+            pstmt.setString(7, project.getCategory());
+            pstmt.setString(8, approvalStatus);
+            pstmt.setString(9, progressStatus);
+            pstmt.setObject(10, project.getFundingStartAt());
+            pstmt.setObject(11, project.getFundingEndAt());
+            pstmt.setObject(12, project.getPaymentDueAt());
+            pstmt.setObject(13, project.getDeliveryStartAt());
 
             pstmt.executeUpdate();
             return generatedKey(pstmt);
@@ -91,42 +70,104 @@ public class ProjectDAO {
         }
     }
 
-    // 승인된 프로젝트 목록 조회
+    // 승인된 프로젝트 전체 목록 조회
     public List<ProjectDTO> findAll(Connection conn) throws SQLException {
+        return findByFilter(conn, null, 0);
+    }
+
+    // 승인된 프로젝트를 카테고리와 진행 상태로 필터링
+    // category가 null이면 전체 카테고리
+    // fundingStatus: 0은 전체, 1은 진행 중, 2는 마감
+    public List<ProjectDTO> findByFilter(
+            Connection conn, String category, int fundingStatus)
+        throws SQLException {
+        return findByFilter(conn, category, fundingStatus, 1);
+    }
+
+    // category: null이면 전체 카테고리
+    // fundingStatus: 0 전체, 1 진행 중, 2 마감
+    // sort: 1 최신순, 2 모집금액순, 3 마감임박순, 4 좋아요순
+    public List<ProjectDTO> findByFilter(
+            Connection conn, String category, int fundingStatus, int sort)
+            throws SQLException {
+
+        // 사용자 입력을 직접 붙이지 않고 정해진 정렬 구문만 선택
+        String orderBy = switch (sort) {
+            case 1 -> "p.project_id DESC";
+            case 2 -> "funded_amount DESC, p.project_id DESC";
+            case 3 -> """
+                CASE WHEN p.progress_status = 'ongoing'
+                          AND p.funding_end_at > CURRENT_TIMESTAMP
+                     THEN 0 ELSE 1 END,
+                CASE WHEN p.funding_end_at IS NULL THEN 1 ELSE 0 END,
+                p.funding_end_at ASC, p.project_id DESC
+                """;
+            case 4 -> "like_count DESC, p.project_id DESC";
+            default -> throw new IllegalArgumentException("잘못된 정렬 기준입니다.");
+        };
+
+        // 후원금과 좋아요를 각각 집계해서 연결
         String sql = """
-                SELECT project_id, user_id, title, subtitle,
-                        introduction, item_info, goal_amount,
-                        category, project_status,
-                        funding_start_at, funding_end_at,
-                        payment_due_at, delivery_start_at
-                FROM project
-                WHERE project_status = 1
-                ORDER BY project_id DESC
-                """; // project_id는 Auto Increment 속성이므로, 등록한 최신순으로 보여줌. DESC
+        SELECT p.project_id, p.user_id, p.title, p.subtitle,
+               p.introduction, p.item_info, p.goal_amount,
+               p.category, p.approval_status, p.progress_status,
+               p.funding_start_at, p.funding_end_at,
+               p.payment_due_at, p.delivery_start_at,
+               COALESCE(funding.funded_amount, 0) AS funded_amount,
+               COALESCE(likes.like_count, 0) AS like_count
+        FROM project p
+        LEFT JOIN (
+            SELECT r.project_id, SUM(r.price * s.reward_count) AS funded_amount
+            FROM reward r
+            JOIN support s ON s.reward_id = r.reward_id
+            WHERE s.cancel_status = FALSE
+            GROUP BY r.project_id
+        ) funding ON funding.project_id = p.project_id
+        LEFT JOIN (
+            SELECT project_id, COUNT(*) AS like_count
+            FROM interest
+            GROUP BY project_id
+        ) likes ON likes.project_id = p.project_id
+        WHERE p.approval_status = ?
+        """;
+
+        if (category != null) {
+            sql += " AND p.category = ?";
+        }
+
+        if (fundingStatus == 1) {
+            sql += " AND p.progress_status = ?";
+        } else if (fundingStatus == 2) {
+            sql += " AND p.progress_status IN (?, ?)";
+        }
+
+        sql += " ORDER BY " + orderBy;
+
         List<ProjectDTO> projects = new ArrayList<>();
 
-        try(PreparedStatement pstmt = conn.prepareStatement(sql);
-            ResultSet rs = pstmt.executeQuery()){
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            int parameterIndex = 1;
 
-            while(rs.next()){
-                ProjectDTO project = new ProjectDTO();
+            pstmt.setString(parameterIndex++, "approved");
 
-                project.setProjectId(rs.getLong("project_id"));
-                project.setUserId(rs.getLong("user_id"));
-                project.setTitle(rs.getString("title"));
-                project.setSubtitle(rs.getString("subtitle"));
-                project.setIntroduction(rs.getString("introduction"));
-                project.setItemInfo(rs.getString("item_info"));
-                project.setGoalAmount(rs.getLong("goal_amount"));
-                project.setCategory(rs.getInt("category"));
-                project.setProjectStatus(rs.getInt("project_status"));
+            if (category != null) {
+                pstmt.setString(parameterIndex++, category);
+            }
 
-                project.setFundingStartAt(rs.getObject("funding_start_at", LocalDateTime.class));
-                project.setFundingEndAt(rs.getObject("funding_end_at", LocalDateTime.class));
-                project.setPaymentDueAt(rs.getObject("payment_due_at", LocalDateTime.class));
-                project.setDeliveryStartAt(rs.getObject("delivery_start_at", LocalDateTime.class));
+            if (fundingStatus == 1) {
+                pstmt.setString(parameterIndex, "ongoing");
+            } else if (fundingStatus == 2) {
+                pstmt.setString(parameterIndex++, "success");
+                pstmt.setString(parameterIndex, "fail");
+            }
 
-                projects.add(project);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    ProjectDTO project = mapProject(rs);
+                    project.setFundedAmount(rs.getLong("funded_amount"));
+                    project.setLikeCount(rs.getLong("like_count"));
+                    projects.add(project);
+                }
             }
         }
 
@@ -140,12 +181,12 @@ public class ProjectDAO {
             FROM (
                 SELECT r.project_id,
                        r.reward_id,
-                       r.stock_quantity - COUNT(fs.support_id) AS remaining_quantity
+                       r.total_count - COALESCE(SUM(fs.reward_count), 0) AS remaining_quantity
                 FROM reward r
-                LEFT JOIN funding_support fs
+                LEFT JOIN support fs
                     ON fs.reward_id = r.reward_id
                     AND fs.cancel_status = FALSE
-                GROUP BY r.project_id, r.reward_id, r.stock_quantity
+                GROUP BY r.project_id, r.reward_id, r.total_count
             ) remaining
             GROUP BY remaining.project_id
             HAVING MAX(remaining.remaining_quantity) <= 0
@@ -164,55 +205,48 @@ public class ProjectDAO {
         return projectIds;
     }
 
-    // 메이커 본인의 프로젝트들 조회
-    // makerId -> 로그인한 회원의 userId
-    public List<ProjectDTO> findByMaker(Connection conn, Long makerId) throws SQLException {
+    // 메이커 본인의 전체 프로젝트 목록 조회
+    public List<ProjectDTO> findByMaker(
+            Connection conn, Long makerId) throws SQLException {
+        return findByMaker(conn, makerId, null);
+    }
+
+    // 메이커 본인의 프로젝트 조회
+    // projectId가 null이면 전체 목록, 값이 있으면 해당 프로젝트만 조회
+    public List<ProjectDTO> findByMaker(
+            Connection conn, Long makerId, Long projectId) throws SQLException {
+
         String sql = """
-            SELECT project_id, user_id, title, subtitle,
-                   introduction, item_info, goal_amount,
-                   category, project_status,
-                   funding_start_at, funding_end_at,
-                   payment_due_at, delivery_start_at
-            FROM project
-            WHERE user_id = ?
-            ORDER BY project_id DESC
-            """; // 여기서도 등록 최신순으로 조회함.
+        SELECT project_id, user_id, title, subtitle,
+               introduction, item_info, goal_amount,
+               category, approval_status, progress_status,
+               funding_start_at, funding_end_at,
+               payment_due_at, delivery_start_at
+        FROM project
+        WHERE user_id = ?
+        """;
+
+        if (projectId != null) {
+            sql += " AND project_id = ?";
+        }
+
+        sql += " ORDER BY project_id DESC";
 
         List<ProjectDTO> projects = new ArrayList<>();
 
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setLong(1, makerId);
 
+            if (projectId != null) {
+                pstmt.setLong(2, projectId);
+            }
+
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
-                    ProjectDTO project = new ProjectDTO();
-
-                    project.setProjectId(rs.getLong("project_id"));
-                    project.setUserId(rs.getLong("user_id"));
-                    project.setTitle(rs.getString("title"));
-                    project.setSubtitle(rs.getString("subtitle"));
-                    project.setIntroduction(rs.getString("introduction"));
-                    project.setItemInfo(rs.getString("item_info"));
-                    project.setGoalAmount(rs.getLong("goal_amount"));
-                    project.setCategory(rs.getInt("category"));
-                    project.setProjectStatus(rs.getInt("project_status"));
-
-                    project.setFundingStartAt(
-                            rs.getObject("funding_start_at", LocalDateTime.class));
-                    project.setFundingEndAt(
-                            rs.getObject("funding_end_at", LocalDateTime.class));
-                    project.setPaymentDueAt(
-                            rs.getObject("payment_due_at", LocalDateTime.class));
-                    project.setDeliveryStartAt(
-                            rs.getObject("delivery_start_at", LocalDateTime.class));
-
-                    projects.add(project);
+                    projects.add(mapProject(rs));
                 }
             }
         }
-
-
-
         return projects;
     }
 
@@ -223,19 +257,19 @@ public class ProjectDAO {
             SELECT r.reward_id,
                    r.title,
                    r.price,
-                   r.stock_quantity,
-                   COUNT(fs.support_id) AS applied_quantity,
-                   r.stock_quantity - COUNT(fs.support_id) AS remaining_quantity,
-                   r.price * COUNT(fs.support_id) AS funded_amount
+                   r.total_count,
+                   COALESCE(SUM(fs.reward_count), 0) AS applied_quantity,
+                   r.total_count - COALESCE(SUM(fs.reward_count), 0) AS remaining_quantity,
+                   r.price * COALESCE(SUM(fs.reward_count), 0) AS funded_amount
             FROM reward r
             JOIN project p
                 ON p.project_id = r.project_id
-            LEFT JOIN funding_support fs
+            LEFT JOIN support fs
                 ON fs.reward_id = r.reward_id
                 AND fs.cancel_status = FALSE
             WHERE r.project_id = ?
               AND p.user_id = ?
-            GROUP BY r.reward_id, r.title, r.price, r.stock_quantity
+            GROUP BY r.reward_id, r.title, r.price, r.total_count
             ORDER BY r.reward_id
             """;
 
@@ -252,8 +286,7 @@ public class ProjectDAO {
                     reward.setRewardId(rs.getLong("reward_id"));
                     reward.setTitle(rs.getString("title"));
                     reward.setPrice(rs.getLong("price"));
-                    reward.setStockQuantity(rs.getInt("stock_quantity"));
-                    reward.setAppliedQuantity(rs.getLong("applied_quantity"));
+                    reward.setTotalCount(rs.getInt("total_count"));                    reward.setAppliedQuantity(rs.getLong("applied_quantity"));
                     reward.setRemainingQuantity(rs.getLong("remaining_quantity"));
                     reward.setFundedAmount(rs.getLong("funded_amount"));
 
@@ -274,12 +307,13 @@ public class ProjectDAO {
                    u.name AS supporter_name,
                    u.nickname AS supporter_nickname,
                    r.title AS reward_title,
-                   fs.supported_at,
+                   fs.reward_count,
+                   fs.processed_at,
                    fs.recipient_name,
                    fs.recipient_contact,
                    fs.delivery_address,
                    fs.delivery_detail_address
-            FROM funding_support fs
+            FROM support fs
             JOIN reward r
                 ON r.reward_id = fs.reward_id
             JOIN project p
@@ -289,7 +323,7 @@ public class ProjectDAO {
             WHERE p.project_id = ?
               AND p.user_id = ?
               AND fs.cancel_status = FALSE
-            ORDER BY fs.supported_at DESC, fs.support_id DESC
+            ORDER BY fs.processed_at DESC, fs.support_id DESC
             """;
 
         List<ProjectSupporterDTO> supporters = new ArrayList<>();
@@ -307,7 +341,8 @@ public class ProjectDAO {
                     supporter.setSupporterName(rs.getString("supporter_name"));
                     supporter.setSupporterNickname(rs.getString("supporter_nickname"));
                     supporter.setRewardTitle(rs.getString("reward_title"));
-                    supporter.setSupportedAt(rs.getObject("supported_at", LocalDateTime.class));
+                    supporter.setRewardCount(rs.getInt("reward_count"));
+                    supporter.setProcessedAt(rs.getObject("processed_at", LocalDateTime.class));
                     supporter.setRecipientName(rs.getString("recipient_name"));
                     supporter.setRecipientContact(rs.getString("recipient_contact"));
                     supporter.setDeliveryAddress(rs.getString("delivery_address"));
@@ -320,42 +355,6 @@ public class ProjectDAO {
 
         return supporters;
     }
-    /*
-    public Long getFundedAmount(Connection conn, ProjectDTO old) {
-        String sql = """
-
-                SELECT
-                    COALESCE(SUM(r.price), 0) AS current_amount
-                FROM reward r
-                JOIN funding_support fs
-                    ON r.reward_id = fs.reward_id
-                WHERE r.project_id = ?
-                GROUP BY r.project_id;
-            """;
-
-        int remainStock = -1;
-        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setLong(1, fsDTO.getRewardId());
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    remainStock =  rs.getInt(1);
-                }
-            }
-
-            if(remainStock < 0) {
-                throw new IllegalStateException("유효하지 않은 후원자 수");
-            }
-
-            return remainStock;
-        } catch (SQLException e) {
-            System.err.println("후원 신청자 수 조회 실패");
-            throw new RuntimeException(e);
-        }
-    }
-    */
-
-
 
     // 프로젝트 조회 및 행 잠금
     public ProjectDTO findByIdForUpdate(Connection conn, Long projectId)
@@ -364,74 +363,70 @@ public class ProjectDAO {
         return selectById(conn, projectId, true);
     }
 
-
-    // 일반 조회와 행 잠금 조회의 공통 처리
-    private ProjectDTO selectById(
-            Connection conn, Long projectId, boolean forUpdate)
+    // 일반 단건 조회와 행 잠금 조회 공통 처리
+    private ProjectDTO selectById(Connection conn, Long projectId, boolean forUpdate)
             throws SQLException {
 
         String sql = "SELECT * FROM project WHERE project_id = ?"
                 + (forUpdate ? " FOR UPDATE" : "");
 
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
             pstmt.setLong(1, projectId);
 
             try (ResultSet rs = pstmt.executeQuery()) {
-
                 if (!rs.next()) {
                     return null;
                 }
 
-                ProjectDTO project = new ProjectDTO();
-
-                project.setProjectId(rs.getLong("project_id"));
-                project.setUserId(rs.getLong("user_id"));
-                project.setTitle(rs.getString("title"));
-                project.setSubtitle(rs.getString("subtitle"));
-                project.setIntroduction(rs.getString("introduction"));
-                project.setItemInfo(rs.getString("item_info"));
-                project.setGoalAmount(rs.getLong("goal_amount"));
-                project.setCategory(rs.getInt("category"));
-                project.setProjectStatus(rs.getInt("project_status"));
-
-                project.setFundingStartAt(
-                        rs.getObject("funding_start_at", java.time.LocalDateTime.class));
-
-                project.setFundingEndAt(
-                        rs.getObject("funding_end_at", java.time.LocalDateTime.class));
-
-                project.setPaymentDueAt(
-                        rs.getObject("payment_due_at", java.time.LocalDateTime.class));
-
-                project.setDeliveryStartAt(
-                        rs.getObject("delivery_start_at", java.time.LocalDateTime.class));
-
-                return project;
+                return mapProject(rs);
             }
         }
     }
 
-
     // 프로젝트 상태 변경
-// 기존 상태와 일치할 때만 변경
+    // 기존 상태와 일치할 때만 변경
     public int changeStatus(
             Connection conn,
             Long projectId,
-            int before,
-            int after) throws SQLException {
+            String before,
+            String after) throws SQLException {
 
-        String sql = "UPDATE project "
-                + "SET project_status = ? "
-                + "WHERE project_id = ? AND project_status = ?";
+        String sql = """
+        UPDATE project
+        SET approval_status = ?
+        WHERE project_id = ?
+          AND approval_status = ?
+        """;
 
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setInt(1, after);
+            pstmt.setString(1, after);
             pstmt.setLong(2, projectId);
-            pstmt.setInt(3, before);
+            pstmt.setString(3, before);
 
             return pstmt.executeUpdate();
         }
+    }
+
+    // 현재 행의 프로젝트 정보를 DTO로 변환
+    // rs.next() 호출은 조회 메서드에서 처리
+    private ProjectDTO mapProject(ResultSet rs) throws SQLException {
+        ProjectDTO project = new ProjectDTO();
+
+        project.setProjectId(rs.getLong("project_id"));
+        project.setUserId(rs.getLong("user_id"));
+        project.setTitle(rs.getString("title"));
+        project.setSubtitle(rs.getString("subtitle"));
+        project.setIntroduction(rs.getString("introduction"));
+        project.setItemInfo(rs.getString("item_info"));
+        project.setGoalAmount(rs.getLong("goal_amount"));
+        project.setCategory(rs.getString("category"));
+        project.setApprovalStatus(rs.getString("approval_status"));
+        project.setProgressStatus(rs.getString("progress_status"));
+        project.setFundingStartAt(rs.getObject("funding_start_at", LocalDateTime.class));
+        project.setFundingEndAt(rs.getObject("funding_end_at", LocalDateTime.class));
+        project.setPaymentDueAt(rs.getObject("payment_due_at", LocalDateTime.class));
+        project.setDeliveryStartAt(rs.getObject("delivery_start_at", LocalDateTime.class));
+
+        return project;
     }
 }
