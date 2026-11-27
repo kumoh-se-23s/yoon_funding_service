@@ -25,6 +25,16 @@ public class FundingSupportService {
     private final ProjectDAO projectDAO;
     private final RewardDAO rewardDAO;
 
+    public boolean checkCountSupporterByReward(Long userId) {
+        try (Connection conn = ds.getConnection()) {
+            return fsDAO.countSupporterByReward(conn, userId) >= 2;
+
+        } catch (SQLException e) {
+            throw new RuntimeException("리워드별 후원 체크 실패", e);
+        }
+
+    }
+
     public List<SupportDTO> findSupports(Long supporterId) {
         try (Connection conn = ds.getConnection()) {
             return fsDAO.findSupports(conn, supporterId);

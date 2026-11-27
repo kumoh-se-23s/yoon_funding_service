@@ -11,6 +11,33 @@ import java.util.List;
 
 public class FundingSupportDAO {
 
+    public int countSupporterByReward(Connection conn, Long rewardID) {
+        String sql = """
+            SELECT
+                Count(user_id)
+            FROM funding_support
+            WHERE reward_id = ?
+              AND cancel_status = FALSE
+            GROUB BY user_id
+            """;
+
+        int userCount = -1;
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setLong(1, rewardID);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    userCount =  rs.getInt(1);
+                }
+            }
+
+
+            return userCount;
+        } catch (SQLException e) {
+            System.err.println("후원을 두개 이상 신청하였습니다.");
+            throw new RuntimeException(e);
+        }
+    }
     public List<SupportDTO> findSupports(Connection conn, Long supporterId)
             throws SQLException {
 

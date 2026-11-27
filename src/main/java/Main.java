@@ -1,11 +1,9 @@
 import persistence.PooledDataSource;
 import persistence.dao.*;
-import persistence.dto.UserDTO;
+import persistence.dto.*;
 import service.*;
 import view.*;
 
-import persistence.dto.ProjectDTO;
-import persistence.dto.RewardDTO;
 import persistence.dao.InterestDAO;
 
 import service.ProjectRegistrationService;
@@ -21,8 +19,6 @@ import javax.sql.DataSource;
 
 import java.sql.SQLException;
 import java.util.Scanner;
-import persistence.dto.RewardFundingStatusDTO;
-import persistence.dto.ProjectSupporterDTO;
 
 public class Main {
     // ---------------- 객체 준비 ----------------
@@ -95,9 +91,9 @@ private static final ProjectApprovalService projectApprovalService =
         //test05UpdateProfile();          // SUPPORTER - 개인정보 수정
         // test06ViewProjects();           // SUPPORTER - 프로젝트 보기
         // test07FilterProjects();         // SUPPORTER - 프로젝트 필터링
-        // test08ApplyReward();            // SUPPORTER - 리워드 신청
+        test08ApplyReward();            // SUPPORTER - 리워드 신청
         // test09RegisterReview();         // SUPPORTER - 리뷰 및 별점 등록
-        //test10ConcurrencyControl();     // SUPPORTER - 제공 가능 수량 동시성 제어
+        // test10ConcurrencyControl();     // SUPPORTER - 제공 가능 수량 동시성 제어
     }
 
 
@@ -462,7 +458,9 @@ private static byte[] loadDemoImage(String fileName) {
                 SupportView supportView = new SupportView(
                         dataSource, loginUser, sc, projectView, projectService, rewardView, rewardService, fss
                 );
-                fss.support(supportView.input());
+                SupportRequestDTO srDTO = supportView.input();
+                fss.support(srDTO);
+                fss.checkCountSupporterByReward(srDTO.getRewardId());
                 System.out.println();
             } catch (Exception e) {
                 e.printStackTrace();
